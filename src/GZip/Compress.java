@@ -1,6 +1,7 @@
 package GZip;
 
 import Common.MainVocabulary;
+import Common.CommonCompress;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -9,125 +10,109 @@ import java.io.IOException;
 import java.util.zip.GZIPOutputStream;
 import Tar.CreateArchive;
 import Gui.StatusDialog;
-import javax.swing.JOptionPane;
 
-/**
- * Bu sınıf dosyaları gz veya tar.gz formatında sıkıştırmakta kullanır. 
- */
-public class Compress implements MainVocabulary {
-
-     String className = Compress.class.getName();
- 
+public class Compress implements MainVocabulary,CommonCompress
+{
+    String className = Compress.class.getName();
     int BUFFERSIZE = 1024;
     GZIPOutputStream outStream;
     BufferedInputStream inStream;
-    CreateArchive tarFile;
     File inFile, outFile; 
     StatusDialog compressDialog;
     
-    
-     /**
-     * gz veya tar.gz formatında sıkıştırma yapabilmek için GZip.Compress sınıfının nesnesinin 
-     * oluşturulduğu kurucu methodu. Nesne oluşturulduktan sonra tar değişkeninin değerine göre, 
-     * gz veya tar.gz formatında sıkıştırma işlemini gerçekleştirebilmek için uygun method çağırılır.
-     * @param inFile Sıkıştıralacak olan kaynak dosyayı gösteren değişken.
-     * @param outFile Sıkıştırılacak olan dosyanın yazılacağı hedef dosyayı gösteren değişken.
-     * @param tar Sıkıştırma formatının gz veya tar.gz den hangisinin olacağını belirleyen değişken.
-     * tar değişkeni true ise tar.gz, false ise gz formatı kullanılır.
-     * @param dialog Sıkıştırma işlemi esnasında görüntülenen StatusDialog arayüzünün daha önceden 
-     * oluşturulmuş olan nesnesine ait değişken.
-     */
-    public Compress(File inFile, File outFile, boolean tar, StatusDialog dialog){
-
-        this.inFile = inFile;
-        this.outFile = outFile;
-        
-        compressDialog = dialog; 
-        compressDialog.setIndeterminate(true);
-        compressDialog.setStateToCompress();
-        
-        if(tar) {
-            tarAndCompressFile();
-        } else {
-            compressFile();
+    public void Compress(File inFile, File outFile, boolean tar, StatusDialog dialog) throws Exception
+    {
+         if(debug)
+            System.out.println("Start GZCompress from " + inFile + " to " + outFile + " at line 25.");
+        try
+        {
+            this.inFile = inFile;
+            this.outFile = outFile;
+            compressDialog = dialog; 
+            compressDialog.setIndeterminate(true);
+            compressDialog.setStateToCompress();
+            if(tar) 
+                tarAndCompressFile();
+            else 
+                compressFile();
+        }
+        catch (Exception ex) 
+        { 
+            throw new Exception(constructError + className + newline + ex.getMessage());
         }
     }   
 
-    /**
-     * inFile dosyasının sadece tek bir dosyadan oluşması (dizin olmaması) halinde sıkıştırma
-     * işlemini gz formatında gerçekleştiren method. İlk olarak sıkıştırılacak dosya 
-     * BufferedInputStream e atılır. Verinin sıkıştırılmasında GZIPOutputStream kullanılır. 
-     * BufferedInputStream deki bütün veriler okununcaya kadar devam eden bir döngü aracılığıyla, 
-     * her seferinde BUFFERSIZE kadar veri BufferedInputStream den okunup, GZIPOutputStreame 
-     * yazılarak sıkıştırma işlemi gerçekleştirilir.
-     */
-    private  void compressFile() {
-
+    public void compressFile() throws Exception 
+    {
+        if(debug)
+            System.out.println("Compress without tar at line 48.");
         int len;
         String outFilePath, inFilePath;
-
         outFilePath = outFile.getAbsolutePath();
         inFilePath = inFile.getAbsolutePath();
-
-        try {
-
+        try 
+        {
              inStream = new BufferedInputStream(new FileInputStream(inFilePath));
              outStream = new GZIPOutputStream(new FileOutputStream(outFilePath));
              byte[] buffer = new byte[BUFFERSIZE];
-
-             while ((len = inStream.read(buffer)) > 0 && !compressDialog.isCanceled()){
+             while ((len = inStream.read(buffer)) > 0 && !compressDialog.isCanceled())
                  outStream.write(buffer,0,len); 
-             }
-         } catch (final Exception ex){
-             compressDialog.cancelDialog();
-             JOptionPane.showMessageDialog(null, "Exception Throwed From: " + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
-             outFile.delete();
-         } finally {
-             try {
-                 if (inStream != null){
+        }
+        catch (Exception ex) 
+        { 
+            compressDialog.cancelDialog();
+            outFile.delete();
+            throw new Exception(compressError + className + newline + ex.getMessage());
+        }
+        finally 
+        {
+             try 
+             {
+                 if (inStream != null)
                      inStream.close();
-                 }
                  if (outStream != null){
                      outStream.flush();
                      outStream.close();
                  }
-                 if(compressDialog.isCanceled()) {
-                     outFile.delete();          
-                 }
-             } catch (final IOException ex){
-                 compressDialog.cancelDialog();
-                 JOptionPane.showMessageDialog(null, "Exception Throwed From: " + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
-                 outFile.delete();
-             }
+                 if(compressDialog.isCanceled()) 
+                     outFile.delete();     
+            }
+            catch (IOException ex) 
+            { 
+                compressDialog.cancelDialog();
+                outFile.delete();
+                throw new Exception(StreamCloseError + className + newline + ex.getMessage());
+            }
          }
     }
 
-    /**
-     * inFile dosyası bir dizin ise veya sıkıştırma işlemi tar.gz formatında yapılmak isteniyorsa 
-     * kullanılacak method. Sıkıştırılacak veriyi girdi olarak alan GZIPOutputStream sınıfına ait
-     * bir nesne oluşturulur. Son olarak da sıkıştırma işlemini gerçekleştirecek olan  Tar.CreateArchive 
-     * sınıfının bir nesnesi oluşturularak sıkıştırma işlemi başlatılır.
-     */
-    private void tarAndCompressFile(){
-        
-        try{
+    public void tarAndCompressFile() throws Exception
+    {
+        if(debug)
+            System.out.println("Compress with tar at line 94.");
+        try
+        {
             String outFilePath = outFile.getAbsolutePath();
             outStream = new GZIPOutputStream(new FileOutputStream(outFilePath));
-            tarFile = new CreateArchive(outStream, inFile, outFile, compressDialog);
-        } catch (Exception ex){
+            new CreateArchive(outStream, inFile, outFile, compressDialog);
+        } 
+        catch (Exception ex) 
+        { 
             compressDialog.cancelDialog();
-            JOptionPane.showMessageDialog(null, "Exception Throwed From: " + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
-        }finally {
-            try {
-               
-                if (outStream != null){
+            throw new Exception(compressError + className + newline + ex.getMessage());
+        }
+        finally 
+        {
+            try 
+            {
+                if (outStream != null)
                     outStream.close();
-                }
-            } catch (final Exception ex){
+            } 
+            catch (IOException ex) 
+            { 
                 compressDialog.cancelDialog();
-                JOptionPane.showMessageDialog(null, "Exception Throwed From: " + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
+                throw new Exception(StreamCloseError + className + newline + ex.getMessage());
             }
         }
     }
-
 }

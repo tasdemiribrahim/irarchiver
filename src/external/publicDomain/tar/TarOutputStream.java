@@ -7,7 +7,6 @@
 package external.publicDomain.tar;
 
 import java.io.*;
-import javax.activation.*;
 /**
  * UNIX tar arsivini bir outputstream olarak yazar. write() kullanarak girdi 
  * iceriklerini yazar.

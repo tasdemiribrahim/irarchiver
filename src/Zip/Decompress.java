@@ -1,8 +1,10 @@
 package Zip;
 
+import Common.CommonDecompress;
 import Common.FileOperations;
 import Common.MainVocabulary;
 import Gui.StatusDialog;
+import java.awt.TrayIcon;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -10,13 +12,9 @@ import java.io.FileOutputStream;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import javax.swing.JOptionPane;
 
-/**
- * Bu sınıf zip formatında sıkıştırılmış olan dosyaları açmakta kullanılır.
- */
-public class Decompress implements MainVocabulary {
-
+public class Decompress implements MainVocabulary,CommonDecompress
+{
     String className = Decompress.class.getName();
     int BUFFERSIZE = 1024;
     ZipInputStream inStream;
@@ -25,129 +23,112 @@ public class Decompress implements MainVocabulary {
     StatusDialog decompressDialog;
     boolean overwrite;
 
-    /**
-     * Zip formatında sıkıştırılmış dosyaları açmakta kullanılan Zip.Decompress sınıfının nesnesini 
-     * oluşturan kurucu methodu.
-     * @param inFile Sıkıştırılmış halde olan dosyayı gösteren değişken.
-     * @param outFileParent Dosyayının açılacağı hedef dizini gösteren değişken.
-     * @param overwrite Dosyanın açılacağı dizinde aynı isimde başka bir dosya var ise 
-     * üzerine yazma işleminin yapılıp yapılmayacağını gösteren değişken.
-     * @param  dialog Dosya açma işlemi esnasında görüntülenen StatusDialog arayüzünün daha 
-     * önceden oluşturulmuş olan nesnesine ait değişken.
-     */
-    public Decompress(File inFile, File outFileParent, boolean overwrite, StatusDialog dialog) {
-
-        this.inFile = inFile;
-        this.outFileParent = outFileParent;
-        this.overwrite = overwrite;
-
-        decompressDialog = dialog;
-        decompressDialog.setIndeterminate(false);
-        decompressDialog.setStateToDecompress();
-        
-        decompressFile();
+    public void Decompress(File inFile, File outFileParent, boolean overwrite, StatusDialog dialog) throws Exception 
+    {
+        if(debug)
+            System.out.println("Start ZIPDecompress from " + inFile + " to " + outFileParent + " at line 28.");
+        try
+        {
+            this.inFile = inFile;
+            this.outFileParent = outFileParent;
+            this.overwrite = overwrite;
+            decompressDialog = dialog;
+            decompressDialog.setIndeterminate(false);
+            decompressDialog.setStateToDecompress();
+            decompressFile();
+        }
+        catch (Exception ex) 
+        { 
+            throw new Exception(constructError + className + newline + ex.getMessage());
+        }
     }
 
-    /**
-     * zip formatında sıkıştırılmış olan inFile dosyasının açma işleminin gerçekleştirildiği method.
-     * Dosyayı açma işleminde ZipInputStream ve ZipEntry sınıfları kullanılır. ZipInputStreamin 
-     * getNextEntry methodu kullanılarak ZipEntry nesnesi okunur ve ZipInputStream nesnesinin stream 
-     * içerisindeki pozisyonu ZipEntry verisinin başlangıcına getirilir. Daha sonra ZipInputStreamde
-     * bulunan ZipEntry bir döngü aracılığıyla bir BufferedOutputStreame yazılır. Bu işlem ZipInputStream 
-     * içerisindeki bütün ZipEntryler için tekrarlanarak dosya açma işlemi tamamlanır.
-     */
-    private void decompressFile() {
-
+    public void decompressFile() throws Exception 
+    {
+        if(debug)
+            System.out.println("Decompress at line 49.");
         boolean fileExist = false;
         File outFile = null;
-
-        try {
-
+        try 
+        {
             int len;
             long totalEntry = 0, currentEntry = 0;
             String outFileParentPath, outFileName, inFilePath;
-            
             inFilePath = inFile.getAbsolutePath();
             outFileParentPath = outFileParent.getAbsolutePath();
-            
             inStream = new ZipInputStream(new FileInputStream(inFilePath));
             ZipEntry zEntry = inStream.getNextEntry();
-
             int index = zEntry.getName().indexOf(File.separator, 1);
-            if (index > 0) {
+            if (index > 0) 
                 outFileName = zEntry.getName().substring(1, index);
-            } else {
+            else 
                 outFileName = zEntry.getName();
-            }
-            
             outFile = new File(outFileParentPath + File.separator + outFileName);
-
-            if (outFile.exists() && overwrite == false) {
+            if (outFile.exists() && overwrite == false) 
+            {
                 fileExist = true;
                 decompressDialog.cancelDialog();
-                JOptionPane.showMessageDialog(null, fileExistWarning, "Warning!", JOptionPane.WARNING_MESSAGE);
-            } else {
-
+                trayIcon.displayMessage( "Warning!",fileExistWarning, TrayIcon.MessageType.ERROR);
+            } 
+            else 
+            {
                 ZipFile zipArc = new ZipFile(inFile);
                 totalEntry = zipArc.size();
-
-                while (zEntry != null && !decompressDialog.isCanceled()) {
-
+                while (zEntry != null && !decompressDialog.isCanceled()) 
+                {
                     currentEntry++;
                     File dFile = new File(outFileParentPath + zEntry.getName());
-
-                    if (!zEntry.isDirectory()) {
-
+                    if (!zEntry.isDirectory()) 
+                    {
                         File makeDir = new File(dFile.getParent());
-                        
-                        if (!makeDir.exists()) {
+                        if (!makeDir.exists()) 
                             makeDir.mkdirs();
-                        }
-                        
-                        if (!dFile.exists() || overwrite) {
-
+                        if (!dFile.exists() || overwrite)
+                        {
                             outStream = new BufferedOutputStream(new FileOutputStream(dFile), BUFFERSIZE);
                             byte[] data = new byte[BUFFERSIZE];
-
-                            while ((len = inStream.read(data, 0, BUFFERSIZE)) > 0 && !decompressDialog.isCanceled()) {
+                            while ((len = inStream.read(data, 0, BUFFERSIZE)) > 0 && !decompressDialog.isCanceled()) 
                                 outStream.write(data, 0, len);
-                            }
                             outStream.close();
                         }
-                    } else {
+                    } 
+                    else 
                         dFile.mkdirs();
-                    }
-
                     decompressDialog.setStatus(currentEntry, totalEntry);
-
                     zEntry = inStream.getNextEntry();
                 }
             }
-
-        } catch (Exception ex) {
+        } 
+        catch (Exception ex) 
+        {
             decompressDialog.cancelDialog();
-            JOptionPane.showMessageDialog(null, "Exception Throwed From: " + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
             FileOperations.deleteDirectory(outFile);
-        } finally {
-            try {
-
-                if (inStream != null) {
+            throw new Exception(decompressError + className + newline + ex.getMessage());
+        } 
+        finally 
+        {
+            try 
+            {
+                if (inStream != null) 
                     inStream.close();
-                }
-                if (outStream != null) {
+                if (outStream != null) 
+                {
                     outStream.flush();
                     outStream.close();
                 }
-
-                if (decompressDialog.isCanceled() && fileExist == false) {
+                if (decompressDialog.isCanceled() && fileExist == false) 
                     FileOperations.deleteDirectory(outFile);
-                }
-
-            } catch (Exception ex) {
+            } 
+            catch (Exception ex) {
                 decompressDialog.cancelDialog();
-                JOptionPane.showMessageDialog(null, "Exception Throwed From: " + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
                 FileOperations.deleteDirectory(outFile);
+                throw new Exception(StreamCloseError + className + newline + ex.getMessage());
             }
         }
     }
+
+    public void Decompress(File inFile, File outFileParent, String fileName, boolean overwrite, StatusDialog dialog) throws Exception {
+        this.Decompress(inFile,outFileParent,overwrite,dialog);
+    }
+    public void decompressAndUntarFile() throws Exception {}
 }

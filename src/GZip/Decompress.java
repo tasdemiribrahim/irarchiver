@@ -1,5 +1,6 @@
 package GZip;
 
+import Common.CommonDecompress;
 import Common.MainVocabulary;
 import Gui.StatusDialog;
 import java.io.BufferedOutputStream;
@@ -8,162 +9,142 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.util.zip.GZIPInputStream;
 import Tar.ExtractArchive;
-import javax.swing.JOptionPane;
+import java.awt.TrayIcon;
 
-/**
- * Bu sınıf gz veya tar.gz formatında sıkıştırılmış olan dosyaları açmakta kullanılır.
- */
-public class Decompress implements MainVocabulary {
-
+public class Decompress implements MainVocabulary,CommonDecompress
+{
     String className = Decompress.class.getName();
     int BUFFERSIZE = 1024;
     GZIPInputStream inStream;
-    ExtractArchive untarFile;
     BufferedOutputStream outStream;
     File inFile, outFile, outFileParent;
     StatusDialog decompressDialog;
     boolean overwrite;
 
-
-    /**
-     * tar.gz formatında sıkıştırılmış olan dosyaları açabilmek için GZip.Decompress sınıfının 
-     * nesnesinin oluşturulduğu kurucu methodu.
-     * @param inFile Açılacak olan sıkıştırılmış dosyayı gösteren değişken.
-     * @param outFileParent Dosyanın açılacağı hedef dizini gösteren değişken.
-     * @param overwrite Dosyanın açılacağı dizinde aynı isimde başka bir dosya var ise üzerine yazma 
-     * işleminin yapılıp yapılmayacağını gösteren değişken.
-     * @param dialog Dosya açma işlemi esnasında görüntülenen StatusDialog arayüzünün daha 
-     * önceden oluşturulmuş olan nesnesine ait değişken.
-     */
-    public Decompress(File inFile, File outFileParent, boolean overwrite, StatusDialog dialog) {
-
-        this.inFile = inFile;
-        this.outFileParent = outFileParent;
-        this.overwrite = overwrite;
-        
-        decompressDialog =dialog;
-        decompressDialog.setIndeterminate(true);
-        decompressDialog.setStateToDecompress();
-
-        decompressAndUntarFile();
+    public void Decompress(File inFile, File outFileParent, boolean overwrite, StatusDialog dialog) throws Exception 
+    {
+        if(debug)
+            System.out.println("Start GZDecompress from " + inFile + " to " + outFileParent + " overwrite: " + overwrite + " at line 26.");
+        try
+        {
+            this.inFile = inFile;
+            this.outFileParent = outFileParent;
+            this.overwrite = overwrite;
+            decompressDialog =dialog;
+            decompressDialog.setIndeterminate(true);
+            decompressDialog.setStateToDecompress();
+            decompressAndUntarFile();
+        }
+        catch (Exception ex) 
+        { 
+            throw new Exception(constructError + className + newline + ex.getMessage());
+        }
     }
 
-    /**
-     * gz formatında sıkıştırılmış olan dosyaları açabilmek için GZip.Decompress sınıfının 
-     * nesnesinin oluşturulduğu kurucu methodu.
-     * @param inFile Açılacak olan sıkıştırılmış dosyayı gösteren değişken.
-     * @param outFileParent Dosyayının açılacağı hedef dizini gösteren değişken.
-     * @param fileName Sıkıştırılmış dosyadan çıkartılacak olan dosyanın hangi isimde 
-     * kaydedileceğini gösteren değişken.
-     * @param overwrite Dosyanın açılacağı dizinde aynı isimde başka bir dosya var ise 
-     * üzerine yazma işleminin yapılıp yapılmayacağını gösteren değişken.
-     * @param dialog Dosya açma işlemi esnasında görüntülenen StatusDialog arayüzünün daha 
-     * önceden oluşturulmuş olan nesnesine ait değişken.
-     */
-    public Decompress(File inFile, File outFileParent, String fileName, boolean overwrite, StatusDialog dialog) {
-
-        this.inFile = inFile;
-        this.outFileParent = outFileParent;
-        this.outFile = new File(outFileParent.getAbsolutePath() + File.separator + fileName);
-        this.overwrite = overwrite;
-        
-        decompressDialog = dialog;
-        decompressDialog.setIndeterminate(true);
-        decompressDialog.setStateToDecompress();
-
-        decompressFile();
+    public void Decompress(File inFile, File outFileParent, String fileName, boolean overwrite, StatusDialog dialog) throws Exception
+    {
+        if(debug)
+            System.out.println("Start GZDecompress from " + inFile + " to " + outFileParent + " name is " + fileName + " overwrite: " + overwrite + " at line 47.");
+        try
+        {
+            this.inFile = inFile;
+            this.outFileParent = outFileParent;
+            this.outFile = new File(outFileParent.getAbsolutePath() + File.separator + fileName);
+            this.overwrite = overwrite;
+            decompressDialog = dialog;
+            decompressDialog.setIndeterminate(true);
+            decompressDialog.setStateToDecompress();
+            decompressFile();
+        }
+        catch (Exception ex) 
+        { 
+            throw new Exception(constructError + className + newline + ex.getMessage());
+        }
     }
    
-    /**
-     * gz formatında sıkıştırılmış olan inFile dosyasının açma işleminin gerçekleştirildiği
-     * method. İlk olarak açma işleminin gerçekleştirileceği dizinde aynı isimde başka bir dosya
-     * olup olmadığı overwrite değişkeni ile birlikte kontrol edilir. Sıkıştırılmış olan dosyayı
-     * girdi olarak alan GZIPInputStream sınıfına ait bir nesne oluşturulur. Açılmış dosyayı 
-     * yazmak için de BufferedOutputStream sınıfına ait bir nesne oluşturulur. GZIPInputStream 
-     * içerisindeki tüm veriler okununcaya kadar devam eden bir döngü aracılığıyla, her seferinde BUFFERSIZE 
-     * kadar veri GZIPInputStream den okunup, BufferedOutputStreame yazılarak dosya açma işlemi 
-     * gerçekleştirilir.
-     */
-    private void decompressFile() {
-
+    public void decompressFile() throws Exception 
+    {
+         if(debug)
+            System.out.println("Start decompress without tar at line 69.");
         boolean fileExist = false;
-        try {
-
+        try 
+        {
             int len;
             String inFilePath,outFilePath ;
-
             inFilePath = inFile.getAbsolutePath();
             outFilePath = outFile.getAbsolutePath();
-
-            if (outFile.exists() && overwrite == false) {
+            if (outFile.exists() && overwrite == false) 
+            {
                 fileExist = true;
                 decompressDialog.cancelDialog();
-                JOptionPane.showMessageDialog(null, fileExistWarning, "Warning!", JOptionPane.WARNING_MESSAGE);
-            } else {
-
-                
+                trayIcon.displayMessage( "Warning!",fileExistWarning, TrayIcon.MessageType.ERROR);
+             }
+            else 
+            {
                 outStream = new BufferedOutputStream(new FileOutputStream(outFilePath));
                 inStream = new GZIPInputStream(new FileInputStream(inFilePath));
-                
                 byte[] fBuffer = new byte[BUFFERSIZE];
-                while (!decompressDialog.isCanceled() && (len = inStream.read(fBuffer, 0, BUFFERSIZE)) > 0) {
-
+                while (!decompressDialog.isCanceled() && (len = inStream.read(fBuffer, 0, BUFFERSIZE)) > 0) 
                     outStream.write(fBuffer, 0, len);
-                }
                 outStream.close();
             }
-        } catch (Exception ex) {
-            decompressDialog.cancelDialog();
-            JOptionPane.showMessageDialog(null, "Exception Throwed From: " + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
+        }
+        catch (Exception ex) 
+        {   
             outFile.delete();
-        } finally {
-            try {
-                if (inStream != null) {
+            decompressDialog.cancelDialog();
+            throw new Exception(decompressError + className + newline + ex.getMessage());
+        }
+        finally 
+        {
+            try 
+            {
+                if (inStream != null) 
                     inStream.close();
-                }
-                if (outStream != null) {
+                if (outStream != null) 
                     outStream.close();
-                }
-                if (decompressDialog.isCanceled() && fileExist == false) {
+                if (decompressDialog.isCanceled() && fileExist == false) 
                     outFile.delete();
-                }
-            } catch (Exception ex) {
-                decompressDialog.cancelDialog();
-                JOptionPane.showMessageDialog(null, "Exception Throwed From: " + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
+            }
+            catch (Exception ex) 
+            {   
                 outFile.delete();
+                decompressDialog.cancelDialog();
+                throw new Exception(StreamCloseError + className + newline + ex.getMessage());
             }
         }
     }
 
-    /**
-     * tar.gz formatında sıkıştırılmış olan inFile dosyasının açma işleminin gerçekleştirildiği
-     * method. Sıkıştırılmış olan dosyayı girdi olarak alan bir GZIPInputStream sınıfına ait bir 
-     * nesne oluşturulur. Son olarak da sıkıştırılmış dosyayı açma işlemini gerçekleştirecek olan 
-     * Tar.ExtractArchive sınıfına ait bir nesne oluşturularak dosya açma işlemi başlatılır.
-     */
-    private void decompressAndUntarFile() {
-
-        try {
+    public void decompressAndUntarFile() throws Exception 
+    {
+        if(debug)
+            System.out.println("Start decompress with tar at line 124.");
+        try 
+        {
             String inFilePath;
             inFilePath = inFile.getAbsolutePath();
-
             FileInputStream iStream = new FileInputStream(inFilePath);
-
             inStream = new GZIPInputStream(iStream);
-            untarFile = new ExtractArchive(inStream, inFile, outFileParent, overwrite, decompressDialog);
-        } catch (Exception ex) {
-            decompressDialog.setVisible(false);
-            JOptionPane.showMessageDialog(null, "Exception Throwed From: " + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
+            new ExtractArchive(inStream, inFile, outFileParent, overwrite, decompressDialog);
+        }
+        catch (Exception ex) 
+        {   
             outFile.delete();
-        } finally {
-            try {
-                if (inStream != null) {
+            decompressDialog.cancelDialog();
+            throw new Exception(decompressError + className + newline + ex.getMessage());
+        }
+        finally 
+        {
+            try 
+            {
+                if (inStream != null) 
                     inStream.close();
-                }
-            } catch (Exception ex) {  
-                decompressDialog.setVisible(false);
-                JOptionPane.showMessageDialog(null, "Exception Throwed From: " + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
+            }
+            catch (Exception ex) 
+            {   
                 outFile.delete();
+                decompressDialog.cancelDialog();
+                throw new Exception(StreamCloseError + className + newline + ex.getMessage());
             }
         }
     }

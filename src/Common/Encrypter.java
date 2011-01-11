@@ -8,7 +8,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.security.GeneralSecurityException;
+import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -17,83 +19,80 @@ import javax.crypto.Cipher;
 import javax.crypto.Mac;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-import javax.swing.JOptionPane;
 import Gui.StatusDialog;
-import java.net.SocketException;
+import java.awt.TrayIcon;
 
-/**
- * Dosyaların şifrelenmesinde ve deşifre edilmesinde kullanılan sınıf.
- */
-public class Encrypter implements MainVocabulary {
+public class Encrypter implements MainVocabulary 
+{
+    private String className = Encrypter.class.getName();
+    private static final String RANDOM_ALG = "SHA1PRNG";
+    private static final String DIGEST_ALG = "SHA-256";
+    private static final String HMAC_ALG = "HmacSHA256";
+    private static final String CRYPT_ALG = "AES";
+    private static final String CRYPT_TRANS = "AES/CBC/NoPadding";
+    private static final byte[] DEFAULT_MAC = {0x01, 0x23, 0x45, 0x67, (byte) 0x89, (byte) 0xab, (byte) 0xcd, (byte) 0xef};
+    private static final int KEY_SIZE = 32;
+    private static final int BLOCK_SIZE = 16;
+    private static final int SHA_SIZE = 32;
+    private final boolean DEBUG;
+    private byte[] password;
+    private Cipher cipher;
+    private Mac hmac;
+    private SecureRandom random;
+    private MessageDigest digest;
+    private IvParameterSpec ivSpec1;
+    private SecretKeySpec aesKey1;
+    private IvParameterSpec ivSpec2;
+    private SecretKeySpec aesKey2;
+    public StatusDialog encryptDialog;
 
-    String className = Encrypter.class.getName();
-    static final String RANDOM_ALG = "SHA1PRNG";
-    static final String DIGEST_ALG = "SHA-256";
-    static final String HMAC_ALG = "HmacSHA256";
-    static final String CRYPT_ALG = "AES";
-    static final String CRYPT_TRANS = "AES/CBC/NoPadding";
-    static final byte[] DEFAULT_MAC = {0x01, 0x23, 0x45, 0x67, (byte) 0x89, (byte) 0xab, (byte) 0xcd, (byte) 0xef};
-    static final int KEY_SIZE = 32;
-    static final int BLOCK_SIZE = 16;
-    static final int SHA_SIZE = 32;
-    byte[] password;
-    Cipher cipher;
-    Mac hmac;
-    SecureRandom random;
-    MessageDigest digest;
-    IvParameterSpec ivSpec1;
-    SecretKeySpec aesKey1;
-    IvParameterSpec ivSpec2;
-    SecretKeySpec aesKey2;
-    StatusDialog encryptDialog;
+    protected void debug(String message) 
+    {
+        if (DEBUG) 
+                System.out.println("[DEBUG] " + message);
+    }
 
-    /**
-     * Verilen şifre ile encrypt ve decrypt işlemlerinin yapılacağı, StatusDialog arayüzüne sahip bir 
-     * Common.Encrypter nesnesinin yaratıldığı kurucu methodu.
-     * @throws GeneralSecurityException eğer platform gereken şifreleme methodlarını desteklemiyorsa.
-     * @throws UnsupportedEncodingException UTF-16 kodlaması desteklenmiyorsa.
-     */
-    public Encrypter(String password, StatusDialog dialog) {
-        try {
-
-            setPassword(password);
-            random = SecureRandom.getInstance(RANDOM_ALG);  //random number generator algoritması belirleniyor.
-            digest = MessageDigest.getInstance(DIGEST_ALG); //MessageDigest(Hash) algoritması belirleniyor.
-            cipher = Cipher.getInstance(CRYPT_TRANS); //şifreleme yöntemi olarak AES seçiliyor.
-            hmac = Mac.getInstance(HMAC_ALG);   //Message Authentication Code algoritması belirleniyor.
-
-            encryptDialog = dialog;
-        } catch (GeneralSecurityException ex) {
-            JOptionPane.showMessageDialog(null, "Exception Throwed From:" + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
-        } catch (UnsupportedEncodingException ex) {
-            JOptionPane.showMessageDialog(null, "Exception Throwed From:" + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
+    protected void debug(String message, byte[] bytes) 
+    {
+        if (DEBUG) 
+        {
+            StringBuilder buffer = new StringBuilder("[DEBUG] ");
+            buffer.append(message);
+            buffer.append("[");
+            for (int i = 0; i < bytes.length; i++) 
+            {
+                buffer.append(bytes[i]);
+                buffer.append(i < bytes.length - 1 ? ", " : "]");
+            }
+            System.out.println(buffer.toString());
         }
     }
 
     /**
-     * Random bir byte dizisinin oluşturulduğu method.
-     * @param len Oluşturulan byte dizisinin uzunluğu.
-     * @return len Uzunlukta bir random byte dizisi. 
+     * Generates a pseudo-random byte array.
+     * @return pseudo-random byte array of <tt>len</tt> bytes.
      */
-    private byte[] generateRandomBytes(int len) {
+    protected byte[] generateRandomBytes(int len) 
+    {
         byte[] bytes = new byte[len];
         random.nextBytes(bytes);
         return bytes;
     }
 
     /**
-     * Gelen byte dizisi ve random bytelar ile SHA-256 algoritmasına göre bir hash değerinin oluşturulduğu 
-     * method. (bytes.length x num) adet byte hash değerine eklenir. Daha sonra oluşturulan bu hash değeri 
-     * orjinal byte dizisine kopyalanıyor.
-     * @param bytes Hash değerinin tutulacağı byte dizisini gösteren değişken.
-     * @param num Döngü sayısını gösteren değişken.
+     * SHA256 digest over given byte array and random bytes.<br>
+     * <tt>bytes.length</tt> * <tt>num</tt> random bytes are added to the digest.
+     * <p>
+     * The generated hash is saved back to the original byte array.<br>
+     * Maximum array size is {@link #SHA_SIZE} bytes.
      */
-    private void digestRandomBytes(byte[] bytes, int num) {
+    protected void digestRandomBytes(byte[] bytes, int num) 
+    {
         assert bytes.length <= SHA_SIZE;
-
         digest.reset();
         digest.update(bytes);
-        for (int i = 0; i < num; i++) {
+        for (int i = 0; i < num; i++) 
+        {
             random.nextBytes(bytes);
             digest.update(bytes);
         }
@@ -101,44 +100,47 @@ public class Encrypter implements MainVocabulary {
     }
 
     /**
-     * Bigisayarın MAC adresine ve o anki zamana göre random bir IV(Initialization Vector) in yaratıldığı
-     * method. Bu IV dosyadaki IV 2 ve AES key 2 yi şifrelemekte kullanılır.
+     * Generates a pseudo-random IV based on time and this computer's MAC.
+     * <p>
+     * This IV is used to crypt IV 2 and AES key 2 in the file.
      * @return IV.
      */
-    private byte[] generateIv1() throws SocketException {
-        byte[] iv = new byte[BLOCK_SIZE];
-        long time = System.currentTimeMillis();
-        byte[] mac = null;
-
-        Enumeration<NetworkInterface> ifaces = NetworkInterface.getNetworkInterfaces();
-
-        while (mac == null && ifaces.hasMoreElements()) {
-            mac = ifaces.nextElement().getHardwareAddress();
+    protected byte[] generateIv1() throws SocketException 
+    {
+        try 
+        {
+            byte[] iv = new byte[BLOCK_SIZE];
+            long time = System.currentTimeMillis();
+            byte[] mac = null;
+            Enumeration<NetworkInterface> ifaces = NetworkInterface.getNetworkInterfaces();
+            while (mac == null && ifaces.hasMoreElements()) 
+                    mac = ifaces.nextElement().getHardwareAddress();
+            if (mac == null) 
+                    mac = DEFAULT_MAC;
+            for (int i = 0; i < 8; i++) 
+                    iv[i] = (byte) (time >> (i * 8));
+            System.arraycopy(mac, 0, iv, 8, mac.length);
+            digestRandomBytes(iv, 256);
+            return iv;
+        } 
+        catch (SocketException ex) 
+        {
+            throw new SocketException("Socket Failure" + " at" + className + newline + ex.getMessage());
         }
-
-        if (mac == null) {
-            mac = DEFAULT_MAC;
-        }
-
-        for (int i = 0; i < 8; i++) {
-            iv[i] = (byte) (time >> (i * 8));
-        }
-
-        System.arraycopy(mac, 0, iv, 8, mac.length);
-        digestRandomBytes(iv, 256);
-        return iv;
     }
 
     /**
-     * IV kullanılarak oluşturulan AES key in kullanıcının girmiş olduğu password ile bir döngü vasıtasıyla 
-     * güncellenerek son değerinin bulunduğu method.
-     * Bu AES key  IV 2 ve AES key 2 yi şifrelemekte kullanılır.
-     * @return KEY_SIZE Büyüklüğündeki AES byte dizisi.
+     * Generates an AES key starting with an IV and applying the supplied user password.
+     * <p>
+     * This AES key is used to crypt IV 2 and AES key 2.
+     * @return AES key of {@link #KEY_SIZE} bytes.
      */
-    private byte[] generateAESKey1(byte[] iv, byte[] password) {
+    protected byte[] generateAESKey1(byte[] iv, byte[] password) 
+    {
         byte[] aesKey = new byte[KEY_SIZE];
         System.arraycopy(iv, 0, aesKey, 0, iv.length);
-        for (int i = 0; i < 8192; i++) {
+        for (int i = 0; i < 8192; i++)
+        {
             digest.reset();
             digest.update(aesKey);
             digest.update(password);
@@ -148,267 +150,301 @@ public class Encrypter implements MainVocabulary {
     }
 
     /**
-     * Dosya içeriğini şifrelemek için random bir IV nin üretildiği method.
-     * @return IV2.
+     * Generates the random IV used to crypt file contents.
+     * @return IV 2.
      */
-    private byte[] generateIV2() {
+    protected byte[] generateIV2() 
+    {
         byte[] iv = generateRandomBytes(BLOCK_SIZE);
         digestRandomBytes(iv, 256);
         return iv;
     }
 
     /**
-     * Dosya içeriğini şifrelemek için random bir AES key in üretildiği method.
-     * @return KEY_SIZE Büyüklüğünde bir AES key.
+     * Generates the random AES key used to crypt file contents.
+     * @return AES key of {@link #KEY_SIZE} bytes.
      */
-    private byte[] generateAESKey2() {
+    protected byte[] generateAESKey2() 
+    {
         byte[] aesKey = generateRandomBytes(KEY_SIZE);
         digestRandomBytes(aesKey, 32);
         return aesKey;
     }
 
     /**
-     * bytes Dizisi doldurulana kadar stream den okuma yapan method.
-     * @throws IOException Array dolmaz ise.
+     * Utility method to read bytes from a stream until the given array is fully filled.
+     * @throws IOException if the array can't be filled.
      */
-    private void readBytes(InputStream in, byte[] bytes) throws IOException {
-        if (in.read(bytes) != bytes.length) {
-            throw new IOException(EOFError);
+    protected void readBytes(InputStream in, byte[] bytes) throws IOException
+    {
+        if (in.read(bytes) != bytes.length) 
+                throw new IOException(EOFError);
+    }
+
+    /**************
+     * PUBLIC API *
+     **************/
+
+    /**
+     * Builds an object to encrypt or decrypt files with the given password.
+     * @throws GeneralSecurityException if the platform does not support the required cryptographic methods.
+     * @throws UnsupportedEncodingException if UTF-16 encoding is not supported.
+     */
+    public Encrypter(String password,StatusDialog encryptDialog) throws GeneralSecurityException, UnsupportedEncodingException 
+    {
+        this(debug, password,encryptDialog);
+    }
+
+    /**
+     * Builds an object to encrypt or decrypt files with the given password.
+     * @throws GeneralSecurityException if the platform does not support the required cryptographic methods.
+     * @throws UnsupportedEncodingException if UTF-16 encoding is not supported.
+     */
+    public Encrypter(boolean debug, String password,StatusDialog encryptDialog) throws GeneralSecurityException, UnsupportedEncodingException
+    {
+        try 
+        {
+            this.encryptDialog=encryptDialog;
+            DEBUG = debug;
+            setPassword(password);
+            random = SecureRandom.getInstance(RANDOM_ALG);
+            digest = MessageDigest.getInstance(DIGEST_ALG);
+            cipher = Cipher.getInstance(CRYPT_TRANS);
+            hmac = Mac.getInstance(HMAC_ALG);
+        } 
+        catch (GeneralSecurityException ex) 
+        {       
+            trayIcon.displayMessage("Warning !",JCE_EXCEPTION_MESSAGE, TrayIcon.MessageType.ERROR);
+            throw new GeneralSecurityException(JCE_EXCEPTION_MESSAGE, ex);
         }
     }
 
     /**
-     * Kullanıcı tarafından girilen passwordun kodlamasını UTF-16 olacak şekilde değiştiren method.
-     * @throws UnsupportedEncodingException UTF-16 kodlaması desteklenmiyorsa.
+     * Changes the password this object uses to encrypt and decrypt.
+     * @throws UnsupportedEncodingException if UTF-16 encoding is not supported.
      */
-    private void setPassword(String password) throws UnsupportedEncodingException {
+    public void setPassword(String password) throws UnsupportedEncodingException 
+    {
         this.password = password.getBytes("UTF-16LE");
+        debug("Using password: ", this.password);
     }
 
     /**
-     * inFilePath adresinde bulunan verinin şifrelenerek outFilePath adresine yazıldığı method.
-     * Şifrelemede kullanılan AES versiyonu 1 ya da 2 olabilir.
-     * @throws IOException I/O hataları olursa.
-     * @throws GeneralSecurityException Platform şifreleme methodlarını desteklemiyorsa.
+     * The file at <tt>fromPath</tt> is encrypted and saved at <tt>toPath</tt> location.
+     * <p>
+     * <tt>version</tt> can be either 1 or 2.
+     * @throws IOException when there are I/O errors.
+     * @throws GeneralSecurityException if the platform does not support the required cryptographic methods.
      */
-    public void encrypt(int version, String inFilePath, String outFilePath) throws IOException, GeneralSecurityException {
-
-        encryptDialog.setStateToEncrypt();
-
-        long totalSize = 0, comletedSize = 0;
-        File outFile = null;
+    public void encrypt(int version, String fromPath, String toPath) throws IOException, GeneralSecurityException 
+    {
         InputStream in = null;
         OutputStream out = null;
+        long totalSize = new File(fromPath).length();
+        long completedSize=0;
+        encryptDialog.setStateToEncrypt();
         byte[] text = null;
-
-        try {
-
+        try 
+        {
             ivSpec1 = new IvParameterSpec(generateIv1());
             aesKey1 = new SecretKeySpec(generateAESKey1(ivSpec1.getIV(), password), CRYPT_ALG);
             ivSpec2 = new IvParameterSpec(generateIV2());
             aesKey2 = new SecretKeySpec(generateAESKey2(), CRYPT_ALG);
+            debug("IV1: ", ivSpec1.getIV());
+            debug("AES1: ", aesKey1.getEncoded());
+            debug("IV2: ", ivSpec2.getIV());
+            debug("AES2: ", aesKey2.getEncoded());
 
-            in = new FileInputStream(inFilePath);
-            out = new FileOutputStream(outFilePath);
-            outFile = new File(outFilePath);
-            totalSize = new File(inFilePath).length();
+            in = new FileInputStream(fromPath);
+            debug("Opened for reading: " + fromPath);
+            out = new FileOutputStream(toPath);
+            debug("Opened for writing: " + toPath);
 
-            out.write("AES".getBytes());	// Header bitleri
-            out.write(version);	// Versiyon.
-            out.write(0);	// Reserve edilmiş bitler.
-            if (version == 2) {	// Extension bitinin olmadığını gösterir.
-                out.write(0);
-                out.write(0);
+            out.write("AES".getBytes("UTF-8"));	// Heading.
+            out.write(version);	// Version.
+            out.write(0);	// Reserved.
+            if (version == 2) 
+            {	// No extensions.
+                    out.write(0);
+                    out.write(0);
             }
-            out.write(ivSpec1.getIV());	// Initialization Vektörü.
+            out.write(ivSpec1.getIV());	// Initialization Vector.
 
             text = new byte[BLOCK_SIZE + KEY_SIZE];
             cipher.init(Cipher.ENCRYPT_MODE, aesKey1, ivSpec1);
             cipher.update(ivSpec2.getIV(), 0, BLOCK_SIZE, text);
             cipher.doFinal(aesKey2.getEncoded(), 0, KEY_SIZE, text, BLOCK_SIZE);
-            out.write(text);	// Şifrelenmiş IV ve key.
+            out.write(text);	// Crypted IV and key.
+            debug("IV2 + AES2 ciphertext: ", text);
 
             hmac.init(new SecretKeySpec(aesKey1.getEncoded(), HMAC_ALG));
             text = hmac.doFinal(text);
-            out.write(text);	// önceki cyphertextin HMAC değeri.
+            out.write(text);	// HMAC from previous cyphertext.
+            debug("HMAC1: ", text);
 
             cipher.init(Cipher.ENCRYPT_MODE, aesKey2, ivSpec2);
             hmac.init(new SecretKeySpec(aesKey2.getEncoded(), HMAC_ALG));
             text = new byte[BLOCK_SIZE];
             int len, last = 0;
-
-            while ((len = in.read(text)) > 0 && !encryptDialog.isCanceled()) {
+            while ((len = in.read(text)) > 0 && !encryptDialog.isCanceled()) 
+            {
                 cipher.update(text, 0, BLOCK_SIZE, text);
                 hmac.update(text);
-                out.write(text);	// Şifrelenmiş veri bloğu.
+                out.write(text);	// Crypted file data block.
                 last = len;
-
-                comletedSize += len;
-                encryptDialog.setStatus(comletedSize, totalSize);
+                completedSize += len;
+                encryptDialog.setStatus(completedSize, totalSize);
             }
-
             last &= 0x0f;
-            out.write(last);	// 4 bitlik mod 16 değeri.
+            out.write(last);	// Last block size mod 16.
+            debug("Last block size mod 16: " + last);
 
             text = hmac.doFinal();
-            out.write(text);	// önceki cyphertextin HMAC değeri.
-
-        } catch (Exception ex) {
+            out.write(text);	// HMAC from previous cyphertext.
+            debug("HMAC2: ", text);
+        } 
+        catch (InvalidKeyException e) 
+        {
             encryptDialog.cancelDialog();
-            ex.printStackTrace();
-            JOptionPane.showMessageDialog(null, "Exception Throwed From:" + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
-            outFile.delete();
-        } finally {
-            if (in != null) {
-                in.close();
-            }
-            if (out != null) {
-                out.close();
-            }
-            if (encryptDialog.isCanceled()) {
-                outFile.delete();
-            }
+            trayIcon.displayMessage("Warning !",JCE_EXCEPTION_MESSAGE, TrayIcon.MessageType.ERROR);
+            throw new GeneralSecurityException(JCE_EXCEPTION_MESSAGE, e);
+        }
+        finally 
+        {
+            if (in != null) 
+                    in.close();
+            if (out != null) 
+                    out.close();
         }
     }
 
     /**
-     * inFiePath adresindeki şifrelenmiş dosyanın deşifre edilerek outFilePath adresine yazıldığı method..
-     * Kaynak dosyanın decrypt edilebilmesi için AES versiyon 1 veya 2 ile şifrelenmiş olması gerekmektedir. 
-     * @throws IOException I/O hataları olursa.
-     * @throws GeneralSecurityException Platform gerekn şifreleme methodlarını desteklemiyorsa.
+     * The file at <tt>fromPath</tt> is decrypted and saved at <tt>toPath</tt> location.
+     * <p>
+     * Source file can be encrypted using version 1 or 2 of aescrypt.
+     * @throws IOException when there are I/O errors.
+     * @throws GeneralSecurityException if the platform does not support the required cryptographic methods.
      */
-    public void decrypt(String inFilePath, String outFilePath) throws IOException, GeneralSecurityException {
-
+    public void decrypt(String fromPath, String toPath) throws IOException, GeneralSecurityException 
+    {
         encryptDialog.setStateToDencrypt();
-
         InputStream in = null;
         OutputStream out = null;
-        File outFile = null;
         byte[] text = null, backup = null;
         long total = 3 + 1 + 1 + BLOCK_SIZE + BLOCK_SIZE + KEY_SIZE + SHA_SIZE + 1 + SHA_SIZE;
         int version;
-        try {
-
-            in = new FileInputStream(inFilePath);
-            out = new FileOutputStream(outFilePath);
-            outFile = new File(outFilePath);
+        long completedSize=0;
+        try 
+        {
+            in = new FileInputStream(fromPath);
+            debug("Opened for reading: " + fromPath);
+            out = new FileOutputStream(toPath);
+            debug("Opened for writing: " + toPath);
 
             text = new byte[3];
-            readBytes(in, text);	// sihirli bitler.
-            
-            if (!new String(text).equals("AES")) {
-                throw new Exception("Exception Throwed From:" + className + "\n" + aesHeaderError);
-            }
+            readBytes(in, text);	// Heading.
+            if (!new String(text, "UTF-8").equals("AES")) 
+                    throw new IOException("Invalid file header");
 
-            version = in.read();	// Versiyon.
-            if (version < 1 || version > 2) {
-                throw new Exception("Exception Throwed From:" + className + "\n" + aesUnsopportedVersionError);
-            }
+            version = in.read();	// Version.
+            if (version < 1 || version > 2) 
+                    throw new IOException("Unsupported version number: " + version);
+            debug("Version: " + version);
 
-            in.read();	// Reserve.
+            in.read();	// Reserved.
 
-            if (version == 2) {	// Extension bitleri.
-
+            if (version == 2) 
+            {	// Extensions.
                 text = new byte[2];
                 int len;
-                do {
+                do 
+                {
                     readBytes(in, text);
                     len = ((0xff & (int) text[0]) << 8) | (0xff & (int) text[1]);
-                    if (in.skip(len) != len) {
-                        throw new Exception("Exception Throwed From:" + className + "\n" + aesExtensionError);
-                    }
+                    if (in.skip(len) != len) 
+                        throw new IOException("Unexpected end of extension");
                     total += 2 + len;
+                    debug("Skipped extension sized: " + len);
                 } while (len != 0);
             }
 
             text = new byte[BLOCK_SIZE];
-            readBytes(in, text);	// başlatma.
+            readBytes(in, text);	// Initialization Vector.
             ivSpec1 = new IvParameterSpec(text);
             aesKey1 = new SecretKeySpec(generateAESKey1(ivSpec1.getIV(), password), CRYPT_ALG);
+            debug("IV1: ", ivSpec1.getIV());
+            debug("AES1: ", aesKey1.getEncoded());
 
             cipher.init(Cipher.DECRYPT_MODE, aesKey1, ivSpec1);
             backup = new byte[BLOCK_SIZE + KEY_SIZE];
-            readBytes(in, backup);	// dosya içeriğini decrypt edecek IV2 and aesKey2 değeri.
-
+            readBytes(in, backup);	// IV and key to decrypt file contents.
+            debug("IV2 + AES2 ciphertext: ", backup);
             text = cipher.doFinal(backup);
             ivSpec2 = new IvParameterSpec(text, 0, BLOCK_SIZE);
             aesKey2 = new SecretKeySpec(text, BLOCK_SIZE, KEY_SIZE, CRYPT_ALG);
+            debug("IV2: ", ivSpec2.getIV());
+            debug("AES2: ", aesKey2.getEncoded());
 
             hmac.init(new SecretKeySpec(aesKey1.getEncoded(), HMAC_ALG));
             backup = hmac.doFinal(backup);
             text = new byte[SHA_SIZE];
-            readBytes(in, text);	// HMAC ve doğruluk testi.
+            readBytes(in, text);	// HMAC and authenticity test.
+            if (!Arrays.equals(backup, text)) 
+                    throw new IOException("Message has been altered or password incorrect");
+            debug("HMAC1: ", text);
 
-            if (!Arrays.equals(backup, text)) {
-                throw new Exception(aesPasswordError);
-            }
-
-            total = new File(inFilePath).length() - total;	// Payload boyutu.
-
-            if (total % BLOCK_SIZE != 0) {
-                throw new Exception("Exception Throwed From:" + className + "\n" + aesCorruptedFileError);
-            }
+            total = new File(fromPath).length() - total;	// Payload size.
+            if (total % BLOCK_SIZE != 0) 
+                throw new IOException("Input file is corrupt");
+            if (total == 0) 	// Hack: empty files won't enter block-processing for-loop below. 
+                in.read();	// Skip last block size mod 16.
+            debug("Payload size: " + total);
 
             cipher.init(Cipher.DECRYPT_MODE, aesKey2, ivSpec2);
             hmac.init(new SecretKeySpec(aesKey2.getEncoded(), HMAC_ALG));
             backup = new byte[BLOCK_SIZE];
             text = new byte[BLOCK_SIZE];
-
-            long completedSize = 0;
-            int temp = 0;
-            for (int block = (int) (total / BLOCK_SIZE); block > 0; block--) {
-
-                if (encryptDialog.isCanceled()) {
+            for (int block = (int) (total / BLOCK_SIZE); block > 0; block--) 
+            {
+                if (encryptDialog.isCanceled()) 
                     break;
-                }
                 int len = BLOCK_SIZE;
-                if (in.read(backup, 0, len) != len) {	// Cyphertext bloğu.    
-                    throw new Exception("Exception Throwed From:" + className + "\n" + aesUnexpectedEOFError);
-                }
+                if (in.read(backup, 0, len) != len) 	// Cyphertext block.
+                    throw new IOException("Unexpected end of file contents");
                 cipher.update(backup, 0, len, text);
                 hmac.update(backup, 0, len);
-                if (block == 1) {
-                    temp = len;
-                    len = in.read();	// 4 bits size mod 16.
+                if (block == 1) 
+                {
+                    int last = in.read();	// Last block size mod 16.
+                    debug("Last block size mod 16: " + last);
+                    len = (last > 0 ? last : BLOCK_SIZE);
                 }
+                out.write(text, 0, len);
 
-                if (len != 0) {
-                    out.write(text, 0, len);
-                } else {
-                    out.write(text, 0, temp);
-                }
                 completedSize += len;
                 encryptDialog.setStatus(completedSize, total);
             }
+            out.write(cipher.doFinal());
 
-            if (!encryptDialog.isCanceled()) {
-
-                out.write(cipher.doFinal());
-
-                backup = hmac.doFinal();
-                text = new byte[SHA_SIZE];
-                readBytes(in, text);	// HMAC ve doğruluk testi..
-
-                if (!Arrays.equals(backup, text)) {
-                    throw new Exception(aesPasswordError);
-                }
-            }
-
-        } catch (Exception ex) {
+            backup = hmac.doFinal();
+            text = new byte[SHA_SIZE];
+            readBytes(in, text);	// HMAC and authenticity test.
+            if (!Arrays.equals(backup, text)) 
+                throw new IOException("Message has been altered or password incorrect");
+            debug("HMAC2: ", text);
+        } 
+        catch (InvalidKeyException e) 
+        {
             encryptDialog.cancelDialog();
-            JOptionPane.showMessageDialog(null, ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
-            outFile.delete();
-        } finally {
-            if (in != null) {
+            trayIcon.displayMessage("Warning !",JCE_EXCEPTION_MESSAGE, TrayIcon.MessageType.ERROR);
+            throw new GeneralSecurityException(JCE_EXCEPTION_MESSAGE, e);
+        }
+        finally 
+        {
+            if (in != null) 
                 in.close();
-            }
-            if (out != null) {
+            if (out != null) 
                 out.close();
-            }
-
-            if (encryptDialog.isCanceled()) {
-                outFile.delete();
-            }
         }
     }
 }

@@ -1,86 +1,100 @@
 package Common;
 
 import Gui.StatusDialog;
+import java.awt.TrayIcon;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.security.GeneralSecurityException;
+import java.security.NoSuchAlgorithmException;
+import javax.crypto.NoSuchPaddingException;
 import javax.swing.JOptionPane;
 import javax.swing.JPasswordField;
 
-/**
- * Sıkıştırılmış dosyaların açma işlemlerinin yürütüldüğü sınıf.
- */
-public class DecompressHandler implements MainVocabulary, Runnable {
+public class DecompressHandler implements MainVocabulary, Runnable 
+{
+    private String className = DecompressHandler.class.getName();
+    private String fileName;
+    private File inFile, outFileParent;
+    private boolean overwrite;
+    private StatusDialog decompressDialog;
 
-    String className = DecompressHandler.class.getName();
-    String fileName;
-    File inFile, outFileParent;
-    boolean overwrite;
-    Thread decompressThread;
-    StatusDialog decompressDialog;
-
-    /**
-     * Sıkıştırılmış dosyanın açılmasının istenmesi durumunda Common.DecompressHandler sınıfının
-     * nesnesinin oluşturulduğu kurucu methodu.
-     * @param inFile sıkıştırılmış dosyayı tutan değişken.
-     * @param outFileParent sıkıştırılmış dosyanın açılacağı hedef dizin.
-     */
-    public DecompressHandler(File inFile, File outFileParent, boolean overwrite) {
-
-        this.inFile = inFile;
-        this.outFileParent = outFileParent;
-        this.overwrite = overwrite;
-
-        decompressDialog = new StatusDialog();
+    public DecompressHandler(File inFile, File outFileParent, boolean overwrite) throws Exception
+    {
+        try
+        {
+            this.inFile = inFile;
+            this.outFileParent = outFileParent;
+            this.overwrite = overwrite;
+            decompressDialog = new StatusDialog(this.inFile.getName());
+            if(debug)
+                System.out.println("Handling decompress with file:" + inFile + " to directory: " + outFileParent + " overwrite: " + overwrite + " at line 32.");
+        }
+        catch (Exception ex) 
+        { 
+            throw new Exception(constructError + className + newline + ex.getMessage());
+        } 
     }
 
-    /**
-     * Sıkıştırılmış dosyadan çıkarma işleminin gerçekleştirildiği method. Öncelikle 
-     * DeterminFileType sınıfı kulanılarak dosyanın parçalanmış veya şifrelenmiş 
-     * olup olmadığı kontrol edilir. Alınan sonuca göre dosyaları birleştirme, 
-     * şifre çözme ve dosya açma işlemleri sırasıyla gerçekleştirilir. Bu işlemler 
-     * sırasında tempPath değişkeninin gösterdiği dizinde geçici dosyalar oluşturulur.
-     * Bütün işlemler bitince bu dosyalar silinir.  
-     */
-    public void processDecompress() {
+    private void processDecompress() throws FileNotFoundException, SecurityException, UnsupportedEncodingException, NoSuchAlgorithmException, NoSuchPaddingException, GeneralSecurityException, IOException, Exception
+    {
+        try
+        {
+            if(debug)
+                System.out.println("Starting process decompress at line 46.");
+            String format = null;
+            boolean filejoined = false;
+            File tempFile1 = null, tempFile2 = null;
+            int respond = 0;
 
-        String format = null;
-        boolean filejoined = false;
-        File tempFile1 = null, tempFile2 = null;
-        int respond = 0;
-
-        try {
             FileOperations.createTempDirectory();
-            
+
             fileName = inFile.getName();            
             DetermineFileType findFormat = new DetermineFileType(inFile);
 
-            if (findFormat.checkMultiPart() && !decompressDialog.isCanceled()) {
+            if (findFormat.checkMultiPart() && !decompressDialog.isCanceled()) 
+            {
+                if(debug)
+                    System.out.println("Archive multipart at line 60.");
                 fileName = StringOperations.getFileName(fileName, 1);
                 tempFile1 = new File(tempPath + File.separator + fileName);
-                
+
                 FileOperations.joinFiles(inFile, tempFile1, decompressDialog);
-                
-                if(!decompressDialog.isCanceled()) {
+
+                if(!decompressDialog.isCanceled()) 
+                {
                     filejoined = true;
                     inFile = tempFile1;
                     findFormat = new DetermineFileType(inFile);
                 }
             }
 
-            if (findFormat.checkAES() && !decompressDialog.isCanceled()) {
-
+            if (findFormat.checkAES() && !decompressDialog.isCanceled()) 
+            {
+                if(debug)
+                    System.out.println("Archive encrypted at line 77.");
                 JPasswordField passField = new JPasswordField();
                 Object[] message = {"Please Enter Password: \n", passField};
                 respond = JOptionPane.showConfirmDialog(null, message, "Retrieve Password", JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE);
 
-                if (respond == JOptionPane.OK_OPTION) {
+                if (respond == JOptionPane.OK_OPTION) 
+                {
                     String password = new String(passField.getPassword());
                     Encrypter dencryptFile = new Encrypter(password, decompressDialog);
-                    
-                    if(filejoined) {
+
+                    if(filejoined) 
+                    {
+                        if(debug)
+                            System.out.println("Archive was multiparted at line 90.");
                         tempFile2 = new File(tempPath + File.separator + "temp");
                         FileOperations.copyFile(tempFile1, tempFile2);
                         dencryptFile.decrypt(tempFile2.getAbsolutePath(), tempFile1.getAbsolutePath());
-                    } else {
+                    } 
+                    else 
+                    {
+                        if(debug)
+                            System.out.println("Archive was not multiparted at line 98.");
                         tempFile1 = new File(tempPath + File.separator + fileName);
                         dencryptFile.decrypt(inFile.getAbsolutePath(), tempFile1.getAbsolutePath());
                     }
@@ -88,58 +102,55 @@ public class DecompressHandler implements MainVocabulary, Runnable {
                 }
             }
 
-            if (inFile.exists() && respond != JOptionPane.CANCEL_OPTION && !decompressDialog.isCanceled()) {
+            if (inFile.exists() && respond != JOptionPane.CANCEL_OPTION && !decompressDialog.isCanceled()) 
+            {
                 findFormat = new DetermineFileType(inFile);
+                if ((format=findFormat.simpleCheck())!=null) 
+                {
+                    fileName = StringOperations.getFileName(fileName, 1);
+                    
+                    int k=0;
+                    for(;k<formats.length;k++)
+                        if(format.equals(formats[k]))
+                            break;
 
-                if (findFormat.simpleCheck()) {
-                    format = findFormat.getFileType();
-
-                    if (format.equals(".tar.bz2")) {
-                        BZip2.Decompress tarBz2Open = new BZip2.Decompress(inFile, outFileParent, overwrite, decompressDialog);
-                    } else if (format.equals(".tar.gz")) {
-                        GZip.Decompress tarGzOpen = new GZip.Decompress(inFile, outFileParent, overwrite, decompressDialog);
-                    } else if (format.equals(".tar.lzma")) {
-                        Lzma.Decompress tarLzmaOpen = new Lzma.Decompress(inFile, outFileParent, overwrite, decompressDialog);
-                    } else if (format.equals(".tar")) {
-                        Tar.ExtractArchive tarOpen = new Tar.ExtractArchive(inFile, outFileParent, overwrite, decompressDialog);
-                    } else if (format.equals(".zip")) {
-                        Zip.Decompress zipOpen = new Zip.Decompress(inFile, outFileParent, overwrite, decompressDialog);
-                    } else if (format.equals(".bz2")) {
-                        fileName = StringOperations.getFileName(fileName, 1);
-                        BZip2.Decompress bz2Open = new BZip2.Decompress(inFile, outFileParent, fileName, overwrite, decompressDialog);
-                    } else if (format.equals(".gz")) {
-                        fileName = StringOperations.getFileName(fileName, 1);
-                        GZip.Decompress gzOpen = new GZip.Decompress(inFile, outFileParent, fileName, overwrite, decompressDialog);
-                    } else if (format.equals(".lzma")) {
-                        fileName = StringOperations.getFileName(fileName, 1);
-                        Lzma.Decompress lzmaOpen = new Lzma.Decompress(inFile, outFileParent, fileName, overwrite, decompressDialog);
+                    if(debug)
+                        System.out.println("Found archive type:" + format + " at line 113.");
+                    
+                    if (k==0) 
+                        new Tar.ExtractArchive(inFile, outFileParent, overwrite, decompressDialog);
+                    else
+                    {     
+                        if(k<=Decompressors.length)
+                            Decompressors[k-1].Decompress(inFile, outFileParent, overwrite, decompressDialog);
+                        else    
+                            Decompressors[(k%Decompressors.length)-1].Decompress(inFile, outFileParent, fileName, overwrite, decompressDialog);
                     }
-                } else {
-                    decompressDialog.cancelDialog();
-                    JOptionPane.showMessageDialog(null, unsupportedArchiveError, "Error!", JOptionPane.ERROR_MESSAGE);
+                } 
+                else
+                {
+                    decompressDialog.cancelDialog();     
+                    trayIcon.displayMessage("Error!",unsupportedArchiveError, TrayIcon.MessageType.ERROR);
                 }
             }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            decompressDialog.cancelDialog();
-            JOptionPane.showMessageDialog(null, "Exception Throwed From: " + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
-        } finally {
-            if (tempFile1 != null) {
+            if (tempFile1 != null) 
                 tempFile1.delete();
-            }
-            if (tempFile2 != null) {
+            if (tempFile2 != null) 
                 tempFile2.delete();
-            }
-            if (!decompressDialog.isCanceled()) {
+            if (!decompressDialog.isCanceled()) 
                 decompressDialog.completeDialog();
-            }
         }
+        catch (Exception ex) 
+        { 
+            throw new Exception(preDecompressError + className + newline + ex.getMessage());
+        } 
     }
     
-    /**
-     * Threadi başlatmakta kullanılan method.
-     */
     public void run() {
-        processDecompress();
+        try {
+            processDecompress();
+        } catch (Exception ex) {
+            MyLogger.getLogger().info(ex.getMessage());
+        }
     }
 }

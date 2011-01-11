@@ -1,61 +1,59 @@
-
 package Gui;
 
 import Common.MainVocabulary;
-import java.awt.Dimension;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
-import java.awt.Toolkit;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import javax.swing.JButton;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JProgressBar;
+import Common.MyLogger;
+import java.awt.*;
+import java.awt.event.*;
+import java.io.IOException;
+import javax.swing.*;
 
-/**
- * Dosya sıkıştırma, açma; dosya şifreleme, deşifreleme; dosya parçalama, dosya birleştirme işlemleri 
- * esnasında işlemin o anki durumunu gösteren arayüzü oluşturan sınıf.
- */
-public class StatusDialog extends JFrame implements MainVocabulary, ActionListener {
-
-    String className = StatusDialog.class.getName();
-        
-    String cancelMessage, succeedMessage;
+public class StatusDialog extends JFrame implements MainVocabulary, ActionListener 
+{
+    private String className = StatusDialog.class.getName();
+    private String cancelMessage, succeedMessage,archiveName,historyMsg;
     public boolean cancel = false, isIndeterminate = false, isEditable = true;
-    JProgressBar statusProgressBar;
-    JLabel stateLabel;
-    JButton cancelButton, okButton;
+    private JProgressBar statusProgressBar;
+    private JLabel stateLabel;
+    private JButton cancelButton, okButton;
 
-    /**
-     * Gui.StatusDialog sınıfının nesnesini oluşturan kurucu methodu.
-     */
-    public StatusDialog() {
-
-        initComponents();
-        if (populateGui())
-            initiateActions();
+    public StatusDialog(String archiveName) throws Exception
+    {
+        try
+        {
+            this.archiveName=archiveName;
+            this.historyMsg=archiveName;
+            initComponents();
+            if (createAndShowGUI())
+            {
+                initiateActions();
+                addAssistiveSupport();
+            }
+        }
+        catch (Exception ex) 
+        { 
+            trayIcon.setToolTip(constructError);
+            throw new Exception(constructError + className + newline + ex.getMessage());
+        }
     }
 
-     /**
-     * Arayüz bileşenlerinin tanımlandığı method.
-     */
-    private void initComponents() {
+    private void addAssistiveSupport() 
+    {
+       cancelButton.setMnemonic(KeyEvent.VK_C);
+       okButton.setMnemonic(KeyEvent.VK_O);
+    }
+
+    private void initComponents() 
+    {
         stateLabel = new JLabel("Compressing...");
         statusProgressBar = new JProgressBar();
         cancelButton = new JButton("Cancel");
         okButton = new JButton("Ok");
     }
 
-    /**
-     * Arayüz ve arayüz bileşenlerinin özelliklerinin belirlendeği method. Arayüz bileşenlerinin
-     * arayüz içerisindeki konumlarını belirlemek için GridBagLayout() nesnesi kullanılmıştır.
-     * @return işlemler sırasında herhangi bir hata olursa false, olmazsa true
-     */
-    private boolean populateGui() {
-        try {
+    private boolean createAndShowGUI() throws Exception
+    {
+        try 
+        {
             setLayout(new GridBagLayout());
             GridBagConstraints constraints = new GridBagConstraints();
             constraints.fill = GridBagConstraints.HORIZONTAL;
@@ -67,14 +65,10 @@ public class StatusDialog extends JFrame implements MainVocabulary, ActionListen
             constraints.gridheight = 1;
             constraints.gridwidth = 1;
             add(stateLabel, constraints);
-            constraints.gridx = 0;
             constraints.gridy = 1;
             add(statusProgressBar, constraints);
-            constraints.gridx = 0;
             constraints.gridy = 2;
             add(cancelButton, constraints);
-            constraints.gridx = 0;
-            constraints.gridy = 2;
             add(okButton, constraints);
 
             statusProgressBar.setStringPainted(true);
@@ -83,47 +77,46 @@ public class StatusDialog extends JFrame implements MainVocabulary, ActionListen
             okButton.setEnabled(false);
 
             setSize(250, 125);
-            Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
-            Dimension form = getSize();
-            setLocation((screen.width - form.width) / 2, (screen.height - form.height) / 2);
+            setTitle(archiveName);
+            setLocationRelativeTo(null);
             setResizable(false);
             setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
             setVisible(true);
-
-        } catch (final Exception ex) {
-            ex.printStackTrace();
-            JOptionPane.showMessageDialog(this, populateGuiError +" From:" + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
-            return false;
-        }
+        } 
+        catch (Exception ex) 
+        {
+            trayIcon.setToolTip(populateGuiError);
+            throw new Exception(populateGuiError + "at" + className + newline + ex.getMessage());
+        } 
         return true;
     }
 
-     /**
-     * Arayüz bileşenlerine uygun interface atamalarının yapıldığı method.
-     */
-    private void initiateActions() {
+    private void initiateActions()
+    {
         cancelButton.addActionListener(this);
         okButton.addActionListener(this);
     }
 
-    /**
-     * ActionListener interface inin bir methodudur. Herhangi bir ActionEvent meydana 
-     * gelmesi durumunda ActionEventi gönderen bileşene ait fonksiyonun çağırıldığı method.
-     * @param e Meydana gelen ActionEventinin hangi arayüz bileşeni tarafından oluşturulduğunu 
-     * belirlemekte kullanılan değişken. 
-     */
-    public void actionPerformed(ActionEvent e) {
-        if (e.getSource().equals(cancelButton)) {
-            cancelButtonActionPerformed();
-        } else if (e.getSource().equals(okButton)) {
-            this.dispose();
+    public void actionPerformed(ActionEvent e) 
+    {
+        try
+        {
+            if (e.getSource().equals(cancelButton)) 
+                cancelButtonActionPerformed();
+            else if (e.getSource().equals(okButton)) 
+            {
+                Gui.FrameOperations.deleteFrame(this.getClass().toString(),false);
+                this.dispose();
+            }
+        } 
+        catch (Exception ex) 
+        {
+            MyLogger.getLogger().info(ex.getMessage());
         }
     }
 
-    /**
-     * cancelButton buttonuna basılması durumunda çağırılan method.
-     */
-    private void cancelButtonActionPerformed() {
+    private void cancelButtonActionPerformed() 
+    {
         cancel = true;
         stateLabel.setText(cancelMessage);
         statusProgressBar.setValue(0);
@@ -137,30 +130,26 @@ public class StatusDialog extends JFrame implements MainVocabulary, ActionListen
         okButton.setEnabled(true);
     }
 
-    /**
-     * StatusDialog arayüzünün durumunu şifreleme durumuna getiren ve statusProggressBar ı 
-     * sıfırlayan method.
-     */
-    public void setStateToEncrypt () {
+    public void setStateToEncrypt () 
+    {
+        this.historyMsg+=" with encrypt";
         stateLabel.setText("Encrypting...");
         statusProgressBar.setValue(0);
         setIndeterminate(false);
     }
     
-    /**
-     * StatusDialog arayüzünün durumunu şifre çözme durumuna getiren ve statusProggressBar ı 
-     * sıfırlayan method.
-     */
-    public void setStateToDencrypt () {
-        stateLabel.setText("Dencrypting...");
+    public void setStateToDencrypt () 
+    {
+        this.historyMsg+=" with decrypt";
+        stateLabel.setText("Decrypting...");
         statusProgressBar.setValue(0);
         setIndeterminate(false);
     }
-    /**
-     * StatusDialog arayüzünün durumunu arşivleme durumuna getiren ve statusProggressBar ı 
-     * sıfırlayan method.
-     */
-    public void setStateToCompress () {
+    
+    public void setStateToCompress () 
+    {
+        if(!this.historyMsg.startsWith("Compressed"))
+            this.historyMsg="Compressed " + this.historyMsg;
         setTitle(compressionDialogTitle);
         cancelMessage = compressionCanceledMessage;
         succeedMessage = compressionSucceedMessage;
@@ -168,11 +157,10 @@ public class StatusDialog extends JFrame implements MainVocabulary, ActionListen
         statusProgressBar.setValue(0);
     }
     
-    /**
-     * StatusDialog arayüzünün durumunu arşiv açma durumuna getiren ve statusProggressBar ı 
-     * sıfırlayan method.
-     */
-    public void setStateToDecompress () {
+    public void setStateToDecompress () 
+    {
+        if(!this.historyMsg.startsWith("Decompressed"))
+            this.historyMsg="Decompressed " + this.historyMsg;
         setTitle(decompressionDialogTitle);
         cancelMessage = decompressionCanceledMessage;
         succeedMessage = decompressionSucceedMessage;
@@ -180,92 +168,67 @@ public class StatusDialog extends JFrame implements MainVocabulary, ActionListen
         statusProgressBar.setValue(0);
     }
     
-    /**
-     * StatusDialog arayüzünün durumunu dosya parçalama durumuna getiren ve statusProggressBar ı 
-     * belirsiz duruma getiren method.
-     */
-    public void setStateToSplitFile() {
+    public void setStateToSplitFile()
+    {
+        this.historyMsg+=" with spliting";
         setIndeterminate(true);
         stateLabel.setText("Spliting Files...");
     }
     
-    /**
-     * StatusDialog arayüzünün durumunu dosya birleştirme durumuna getiren ve statusProggressBar ı 
-     * belirsiz duruma getiren method.
-     */
-    public void setStateToJoinFile() {
+    public void setStateToJoinFile()
+    {
+        this.historyMsg+=" with joining";
         setIndeterminate(true);
         stateLabel.setText("Joining Files...");
     }
     
-    /**
-     * statusProgressBar ın değerini güncelleyen method.
-     * @param completed statusProgressBarın o anki konumunu gösteren değişken.
-     * @param total statusProgressBarın toplam kaç birimden oluştuğunu gösteren değişken.
-     */
-    public void setStatus(long completed , long total ) {
+    public void setStatus(long completed , long total ) 
+    {
         int milestone = (int)(((double)completed / (double)total) * 100);
-        if (milestone <= 100) {
+        if (milestone <= 100) 
             statusProgressBar.setValue(milestone);
-        }
     }
 
-    /**
-     * StatusDialog arayüzünün cancel değerini döndürerek yapılan işlemin iptal 
-     * edilip edilmediğini gösteren method.
-     * @return işlem iptal edilmişse false, aksi taktirde true
-     */
-    public boolean isCanceled() {
+    public boolean isCanceled() 
+    {
         return cancel;
     }
     
-    /**
-     * statusProgressBar ın durumunun değiştirilip değiştirilemeyeceğinin belirlendiği method.
-     * @param choise true ise statusProgressBar ın durumu değiştirilebilir, false ise değiştirilemez.
-     */
-    public void setEditable(boolean choise) {
+    public void setCanceled(boolean b) 
+    {
+        this.cancel=b;
+    }
+    
+    public void setEditable(boolean choise)
+    {
         isEditable = choise;
     }
 
-    /**
-     * statusProgressBar ın belirsiz modda görünüp görünmeyeceğini belirleyen method.
-     * @param choice true ise statusProgressBar belirsiz modda, false ise normal
-     * modda görünür. 
-     */
-    public void setIndeterminate(boolean choice) {
-        
-        if(isEditable) {
-            if(choice == true){
-                statusProgressBar.setIndeterminate(choice);
-                statusProgressBar.setStringPainted(false);
-                isIndeterminate = true;
-            }else {
-                statusProgressBar.setIndeterminate(choice);
-                statusProgressBar.setStringPainted(true);
-                isIndeterminate = false;
-            }
+    public void setIndeterminate(boolean choice) 
+    {
+        if(isEditable)
+        {
+            statusProgressBar.setIndeterminate(choice);
+            statusProgressBar.setStringPainted(!choice);
+            isIndeterminate = choice;
         }
     }
 
-    /**
-     * Yapılan işlemin başarıyla tamamlanması durumunda çağırılan method.
-     */
-    public void completeDialog() {
+    public void completeDialog() throws IOException 
+    {
+        MyLogger.addHistory(this.historyMsg);
         stateLabel.setText(succeedMessage);
-       
         if(isIndeterminate)
             setIndeterminate(false);
         statusProgressBar.setValue(100);
-        
+        trayIcon.displayMessage(archiveName,succeedMessage, TrayIcon.MessageType.INFO);
         cancelButton.setVisible(false);
         okButton.setVisible(true);
         okButton.setEnabled(true);
     }
     
-    /**
-     * Yapılan işlemi sonlandırarak StatusDialog arayüzünü kapatan method.
-     */
-    public void cancelDialog() {
+    public void cancelDialog()
+    {
         cancel = true;
         setVisible(false);
     }

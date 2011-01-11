@@ -1,114 +1,130 @@
 package Gui;
 
-import java.awt.event.ActionEvent;
 import java.io.File;
-import Common.FileOperations;
-import Common.MainVocabulary;
-import java.awt.Dimension;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
-import java.awt.Toolkit;
 import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
+import Common.FileOperations;
+import Common.MainVocabulary;
+import Common.MyLogger;
 
-/**
- * Kendisine gelen dosyayı uygun bütün formatlarda sıkıştırarak, en iyi sıkıştırmayı yapan formatı 
- * bulmakta kullanılan sınıf.
- */
-public class CompareAndCompress extends JFrame implements ActionListener, MainVocabulary, Runnable {
-
-    String className = CompareAndCompress.class.getName();
-    JLabel tarTitleLabel, tarBz2TitleLabel, tarLzmaTitleLabel, tarGzTitleLabel, zipTitleLabel, bz2TitleLabel,
-            lzmaTitleLabel, gzTitleLabel, tarResultLabel, tarBz2ResultLabel, tarLzmaResultLabel, tarGzResultLabel,
-            zipResultLabel, bz2ResultLabel, lzmaResultLabel, gzResultLabel, supportedFormatsLabel, sizesLabel,
-            bestFormatTitleLabel, bestFormatTypeLabel, bestFormatSizeTitleLabel, bestFormatSizelabel,
+public class CompareAndCompress extends JFrame implements ActionListener, MainVocabulary, Runnable 
+{
+    private static final String className = CompareAndCompress.class.getName();
+    private JLabel  supportedFormatsLabel, sizesLabel,bestFormatTitleLabel, bestFormatTypeLabel, bestFormatSizeTitleLabel, bestFormatSizelabel,
             resultLabel;
-    JButton closeButton;
-    boolean overwrite;
-    String outFileName;
-    File inFile, outFileParent, tarBz2File, tarGzFile, tarLzmaFile, tarFile, zipFile, bz2File, gzFile, lzmaFile;
-    StatusDialog compressDialog;
-    BZip2.Compress tarBz2Result;
-    GZip.Compress tarGzResult;
-    Lzma.Compress tarLzmaResult;
-    Zip.Compress zipResult;
-    BZip2.Compress bz2Result;
-    GZip.Compress gzResult;
-    Lzma.Compress lzmaResult;
-    Tar.CreateArchive tarResult;
-    double tarBz2Size = 0, tarGzSize = 0, tarLzmaSize = 0, tarSize = 0, zipSize = 0, bz2Size = 0, gzSize = 0, lzmaSize = 0;
+    private JButton closeButton;
+    private boolean overwrite;
+    private String outFileName,formatName[],tempFormatName;
+    private File archivedFiles[],inFile, outFileParent;
+    private StatusDialog compressDialog;
+    private double formatSizes[],  tempFormatSize;
+    GridBagConstraints constraints = new GridBagConstraints();
     
-    /**
-     * En iyi sıkıştırmayı yapan formatı bulmak üzere Gui.CompareAndCompress sınıfının nesnesinin
-     * oluşturulduğu kurucu methodu.
-     * @param inFile Sıkıştırılmak istenilen dosyayı tutan değişken.
-     * @param outFileParent Sıkıştırılacak dosyanının içerisinde bulunacağı dizini tutan değişken
-     * @param outFileName Sıkıştırılacak dosyanın adını tutan değişken.
-     * @param overwrite Sıkıştıralacak dosyanın bulunacağı dizinde aynı isimli bir dosya mevcut ise
-     * üzerine yazma işleminin yapılıp yapılmayacağını belirten değişken.
-     */
-    public CompareAndCompress(File inFile, File outFileParent, String outFileName, boolean overwrite) {
-        this.inFile = inFile;
-        this.outFileParent = outFileParent;
-        this.outFileName = outFileName;
-        this.overwrite = overwrite;
+    public CompareAndCompress(File inFile, File outFileParent, String outFileName, boolean overwrite) throws Exception
+    {
+        try
+        {
+            this.inFile = inFile;
+            this.outFileParent = outFileParent;
+            this.outFileName = outFileName;
+            this.overwrite = overwrite;
 
-        compressDialog = new StatusDialog();
-        compressDialog.setStateToCompress();
-        compressDialog.setIndeterminate(true);
-        compressDialog.setEditable(false);
+            compressDialog = new StatusDialog(this.outFileName);
+            compressDialog.setStateToCompress();
+            compressDialog.setIndeterminate(true);
+            compressDialog.setEditable(false);
 
-        initComponents();
-        if (populateMainGui()) {
-            initiateActions();
+            initComponents();
+            if (createAndShowGUI()) 
+            {
+                initiateActions();
+                addAssistiveSupport();
+            }
         }
+        catch (Exception ex) 
+        { 
+            trayIcon.setToolTip(constructError);
+            throw new Exception(constructError + className + newline + ex.getMessage());
+        } 
     }
 
-    /**
-     * Arayüz bileşenlerinin tanımlandığı method.
-     */
-    private void initComponents() {
+    private void addAssistiveSupport() 
+    {
+        closeButton.setMnemonic(KeyEvent.VK_C);
+        
+        bestFormatTitleLabel.setLabelFor(bestFormatTypeLabel);
+        bestFormatSizeTitleLabel.setLabelFor(bestFormatSizelabel);
+    }
 
-        tarTitleLabel = new JLabel("tar:");
-        tarBz2TitleLabel = new JLabel("tar.bz2:");
-        tarGzTitleLabel = new JLabel("tar.gz:");
-        tarLzmaTitleLabel = new JLabel("tar.lzma:");
-        zipTitleLabel = new JLabel("zip:");
-        bz2TitleLabel = new JLabel("bz2:");
-        gzTitleLabel = new JLabel("gz:");
-        lzmaTitleLabel = new JLabel("lzma:");
-        tarResultLabel = new JLabel();
-        tarBz2ResultLabel = new JLabel();
-        tarGzResultLabel = new JLabel();
-        tarLzmaResultLabel = new JLabel();
-        zipResultLabel = new JLabel();
-        bz2ResultLabel = new JLabel();
-        gzResultLabel = new JLabel();
-        lzmaResultLabel = new JLabel();
+    private void initComponents() 
+    {
         supportedFormatsLabel = new JLabel("<html><u>Formats</u></html>");
         sizesLabel = new JLabel("<html><u>Sizes</u></html>");
+        resultLabel = new JLabel("<html><u>Result</u></html>");
+        
         bestFormatTitleLabel = new JLabel("Selected Format:");
         bestFormatTypeLabel = new JLabel();
         bestFormatSizeTitleLabel = new JLabel("Compressed Size:");
         bestFormatSizelabel = new JLabel();
-        resultLabel = new JLabel("<html><u>Result</u></html>");
+        
         closeButton = new JButton("Close");
     }
 
-     /**
-     * Arayüz ve arayüz bileşenlerinin özelliklerinin belirlendeği method. Arayüz bileşenlerinin
-     * arayüz içerisindeki konumlarını belirlemek için GridBagLayout() nesnesi kullanılmıştır.
-     * @return işlemler sırasında herhangi bir hata olursa false, olmazsa true
-     */
-    private boolean populateMainGui() {
-        try {
+    private void addFormatsToGui() throws Exception 
+    {
+        try
+        {
+            JLabel newFormatTitleLabel;
+            JLabel newFormatResultLabel;
+            constraints.gridx=0;
+            constraints.gridy=1;
+            for(int i=0;i<formatName.length;i++)
+            {
+                newFormatTitleLabel=new JLabel(formatName[i]);
+                add(newFormatTitleLabel, constraints);
 
+                constraints.gridx++;
+                newFormatResultLabel=new JLabel(String.valueOf(formatSizes[i]));
+                add(newFormatResultLabel, constraints);
+                constraints.gridy++;
+                constraints.gridx--;
+            }
+            add(resultLabel, constraints);
+            constraints.gridy++;
+            add(bestFormatTitleLabel, constraints);
+            constraints.gridx++;
+            add(bestFormatTypeLabel, constraints);
+            constraints.gridx--;
+            constraints.gridy++;
+            add(bestFormatSizeTitleLabel, constraints);
+            constraints.gridx++;
+            add(bestFormatSizelabel, constraints);
+            constraints.gridx--;
+            constraints.gridy++;
+            constraints.gridwidth = 3;
+            add(closeButton, constraints);
+        }
+        catch (Exception ex) 
+        { 
+            trayIcon.setToolTip("Extra" + populateGuiError);
+            throw new Exception("Extra" + populateGuiError + className + newline + ex.getMessage());
+        } 
+    }
+    
+    private boolean createAndShowGUI() throws Exception 
+    {
+        try 
+        {
             setLayout(new GridBagLayout());
-            GridBagConstraints constraints = new GridBagConstraints();
             constraints.fill = GridBagConstraints.HORIZONTAL;
             constraints.insets = new Insets(5, 5, 5, 5);
             constraints.gridheight = 1;
@@ -119,307 +135,139 @@ public class CompareAndCompress extends JFrame implements ActionListener, MainVo
             constraints.gridy = 0;
             add(supportedFormatsLabel, constraints);
             constraints.gridx = 1;
-            constraints.gridy = 0;
             add(sizesLabel, constraints);
-            constraints.gridx = 0;
-            constraints.gridy = 1;
-            add(tarTitleLabel, constraints);
-            constraints.gridx = 1;
-            constraints.gridy = 1;
-            add(tarResultLabel, constraints);
-            constraints.gridx = 0;
-            constraints.gridy = 2;
-            add(tarBz2TitleLabel, constraints);
-            constraints.gridx = 1;
-            constraints.gridy = 2;
-            add(tarBz2ResultLabel, constraints);
-            constraints.gridx = 0;
-            constraints.gridy = 3;
-            add(tarGzTitleLabel, constraints);
-            constraints.gridx = 1;
-            constraints.gridy = 3;
-            add(tarGzResultLabel, constraints);
-            constraints.gridx = 0;
-            constraints.gridy = 4;
-            add(tarLzmaTitleLabel, constraints);
-            constraints.gridx = 1;
-            constraints.gridy = 4;
-            add(tarLzmaResultLabel, constraints);
-            constraints.gridx = 0;
-            constraints.gridy = 5;
-            add(zipTitleLabel, constraints);
-            constraints.gridx = 1;
-            constraints.gridy = 5;
-            add(zipResultLabel, constraints);
             
-            if (!inFile.isDirectory()) {
-                constraints.gridx = 0;
-                constraints.gridy = 6;
-                add(bz2TitleLabel, constraints);
-                constraints.gridx = 1;
-                constraints.gridy = 6;
-                add(bz2ResultLabel, constraints);
-                constraints.gridx = 0;
-                constraints.gridy = 7;
-                add(gzTitleLabel, constraints);
-                constraints.gridx = 1;
-                constraints.gridy = 7;
-                add(gzResultLabel, constraints);
-                constraints.gridx = 0;
-                constraints.gridy = 8;
-                add(lzmaTitleLabel, constraints);
-                constraints.gridx = 1;
-                constraints.gridy = 8;
-                add(lzmaResultLabel, constraints);
-            }
-
-            constraints.gridx = 0;
-            constraints.gridy = 9;
-            add(resultLabel, constraints);
-            constraints.gridx = 0;
-            constraints.gridy = 10;
-            add(bestFormatTitleLabel, constraints);
-            constraints.gridx = 1;
-            constraints.gridy = 10;
-            add(bestFormatTypeLabel, constraints);
-            constraints.gridx = 0;
-            constraints.gridy = 11;
-            add(bestFormatSizeTitleLabel, constraints);
-            constraints.gridx = 1;
-            constraints.gridy = 11;
-            add(bestFormatSizelabel, constraints);
-            constraints.gridx = 0;
-            constraints.gridy = 12;
-            constraints.gridwidth = 3;
-            add(closeButton, constraints);
-
             closeButton.setVisible(true);
             closeButton.setEnabled(true);
             
-            setSize(300, 400);
-            Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
-            Dimension form = getSize();
-            setLocation((screen.width - form.width) / 2, (screen.height - form.height) / 2);
+            setLocationRelativeTo(null);
             setTitle(compressionResultTitle);
             setResizable(false);
             setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, populateGuiError + "From:" + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
-            return false;
-        }
+        } 
+        catch (Exception ex) 
+        {
+            trayIcon.setToolTip(populateGuiError);
+            throw new Exception(populateGuiError + "at" + className + newline + ex.getMessage());
+        } 
         return true;
     }    
     
-     
-    /**
-     * Arayüz bileşenlerine uygun interface atamalarının yapıldığı method. 
-     */
-    private void initiateActions() {
+    private void initiateActions() 
+    {
         closeButton.addActionListener(this);
     }
 
-    /**
-     * ActionListener interface inin bir methodudur. closeButton buttonu tarafından ActionEvent oluşturulması 
-     * durumunda classa ait dispose() methodu çağrılarak CompareAndCompress sınıfına ait arayüz kapatılır.
-     * @param e Meydana gelen ActionEventinin hangi arayüz bileşeni tarafından oluşturulduğunu 
-     * belirlemekte kullanılan değişken. 
-     */
-    public void actionPerformed(ActionEvent e) {
-
-        if (e.getSource().equals(closeButton)) {
-            this.dispose();
-        }
-    }
-
-    /**
-     * inFile değişkeniyle belirtilen dosyanın sıkıştırma işlemine başlanan method. İlk olarak setFiles 
-     * methoduyla bütün formatlar için birer dosya oluşturulmaktadır. Sonra da inFile dosyası bu formatlar 
-     * için teker teker sıkıştırılarak oluşturulan dosyalara kaydedilir. Eğer sıkıştırma işlemi 
-     * bitmeden StatusDialog arayüzündeki cancelButton buttonu kullanılırsa işlem iptal edilerek method
-     * sonlandırılır.
-     */
-    private void beginCompress() {
-
-        setFiles();
-        tarBz2Result = new BZip2.Compress(inFile, tarBz2File, true, compressDialog);
-        if (!compressDialog.isCanceled()) {
-            tarGzResult = new GZip.Compress(inFile, tarGzFile, true, compressDialog);
-        }
-        if (!compressDialog.isCanceled()) {
-            tarLzmaResult = new Lzma.Compress(inFile, tarLzmaFile, true, compressDialog);
-        }
-        if (!compressDialog.isCanceled()) {
-            tarResult = new Tar.CreateArchive(inFile, tarFile, compressDialog);
-        }
-        if (!compressDialog.isCanceled()) {
-            zipResult = new Zip.Compress(inFile, zipFile, compressDialog);
-        }
-
-        if (!inFile.isDirectory()) {
-            if (!compressDialog.isCanceled()) {
-                bz2Result = new BZip2.Compress(inFile, bz2File, false, compressDialog);
-            }
-            if (!compressDialog.isCanceled()) {
-                gzResult = new GZip.Compress(inFile, gzFile, false, compressDialog);
-            }
-            if (!compressDialog.isCanceled()) {
-                lzmaResult = new Lzma.Compress(inFile, lzmaFile, false, compressDialog);
+    public void actionPerformed(ActionEvent e) 
+    {
+        if (e.getSource().equals(closeButton)) 
+        {
+            try 
+            {
+                Gui.FrameOperations.deleteFrame(this.getClass().toString(),false);
+                this.dispose();
+            } 
+            catch (Exception ex) 
+            {
+                MyLogger.getLogger().info(ex.getMessage());
             }
         }
     }
 
-    /**
-     * Sıkıştırma yapılan bütün formatlar içerisinden en küçük boyutlu sıkıştırma yapan formatın bulunarak,
-     * sıkıştırılmış dosyanın hedef dizinine yazıldığı method. İlk olarak inFile değişkeniyle belirtilen 
-     * dosya beginCompress methodu aracılığıyla bütün formatlarda sıkıştırılır. Eğer bu sıkıştırma işlemi 
-     * sırasında işlem iptal edilmemişse, getBestFormat methodu ile en küçük boyutlu sıkıştırma yapan format 
-     * bulunarak outFile değişkeninin göstermiş olduğu dizine yazılır. Eğer overwrite değişkeninin değeri 
-     * false ve outFile diye bir dosya mevcut ise dosya yazılmaz ve işlem sonlandırılır. Son olarak da 
-     * sıkıştırma yapılan formatları karşılaştırma yaparken kullanılan tüm geçici dosyalar silinir.
-     */
-    private void findBestFormat() {
-        try {
-            beginCompress();
-            
-            if (!compressDialog.isCanceled()) {
-                setCompressSizes();
+    private void findBestFormat() throws FileNotFoundException, IOException, Exception
+    {
+        try
+        {
+            if (!compressDialog.isCanceled()) 
+            {
+                compress();
                 File bestFormat = getBestFormat();
                 File outFile = new File(outFileParent.getAbsolutePath() + File.separator + bestFormat.getName());
-                
-                if (outFile.exists() && overwrite == false) {                    
-                    compressDialog.setVisible(false);
-                    JOptionPane.showMessageDialog(null, fileExistWarning, "Warning!", JOptionPane.WARNING_MESSAGE);
-                } else {
-                    FileOperations.copyFile(bestFormat, outFile);
-                    compressDialog.setVisible(false);
-                    setVisible(true);              
-                } 
+                compressDialog.setVisible(false);
+                FileOperations.copyFile(bestFormat, outFile);
+                pack();
+                setLocationRelativeTo(null);
+                setResizable(false);
+                setVisible(true);
             }
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(null, "Exception Throwed From:" + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
-        } finally {
-            try {
-                if (tarBz2File != null) {
-                    tarBz2File.delete();
-                }
-                if (tarGzFile != null) {
-                    tarGzFile.delete();
-                }
-                if (tarLzmaFile != null) {
-                    tarLzmaFile.delete();
-                }
-                if (tarFile != null) {
-                    tarFile.delete();
-                }
-                if (zipFile != null) {
-                    zipFile.delete();
-                }
-                if (bz2File != null) {
-                    bz2File.delete();
-                }
-                if (lzmaFile != null) {
-                    lzmaFile.delete();
-                }
-                if (gzFile != null) {
-                    gzFile.delete();
-                }
-            } catch (Exception ex) {
-                ex.printStackTrace();
-                JOptionPane.showMessageDialog(null, "Exception Throwed From:" + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
-            }
-        }
+            for(int i=0;i<archivedFiles.length;i++)
+                archivedFiles[i].delete();
+        } 
+        catch (Exception ex) 
+        {
+            trayIcon.setToolTip("findBestFormat Error");
+            throw new Exception("findBestFormat Error" + "at" + className + newline + ex.getMessage());
+        } 
     }
 
-    /**
-     * Dosyanın sıkıştırılmasında kullanılan bütün formatların kıyaslanarak, en küçük boyutlu sıkıştırma 
-     * yapan formatın bulunduğu method. 
-     * @return En iyi sıkıştırmayı yapan formatın tutulduğu dosya.
-     */
-    private File getBestFormat() {
-        double formatSizes[],  minFormatSize;
-        File compressedFiles[],bestSizedFile  = null;
-        String formatName[],bestFormatName  = null;
+    private File getBestFormat() throws Exception 
+    {
+        try
+        {
+            for (int i = 0; i < formatName.length-1; i++) 
+                for(int j=i+1; j < formatName.length; j++)
+                    if (formatSizes[i] > formatSizes[j]) 
+                    {
+                        tempFormatSize = formatSizes[i];
+                        formatSizes[i] = formatSizes[j];
+                        formatSizes[j] = tempFormatSize;
 
-        if (!inFile.isDirectory()) {
-
-            formatName = new String[]{"tar", "tar.bz2", "tar.gz", "tar.lzma", "zip", "bz2", "gz", "lzma"};
-            compressedFiles = new File[]{tarFile, tarBz2File, tarGzFile, tarLzmaFile, zipFile, bz2File, gzFile, lzmaFile};
-            formatSizes = new double[]{tarSize, tarBz2Size, tarGzSize, tarLzmaSize, zipSize, bz2Size, gzSize, lzmaSize};
-        } else {
-
-            formatName = new String[]{"tar", "tar.bz2", "tar.gz", "tar.lzma", "zip"};
-            compressedFiles = new File[]{tarFile, tarBz2File, tarGzFile, tarLzmaFile};
-            formatSizes = new double[]{tarSize, tarBz2Size, tarGzSize, tarLzmaSize, zipSize};
-        }
-
-        bestSizedFile = tarFile;
-        minFormatSize = tarSize;
-
-        for (int i = 0; i < formatSizes.length; i++) {
-            if (formatSizes[i] < minFormatSize) {
-                bestSizedFile = compressedFiles[i];
-                minFormatSize = formatSizes[i];
-                bestFormatName = formatName[i];
-            }
-        }
-
-        bestFormatTypeLabel.setText(bestFormatName);
-        bestFormatSizelabel.setText(String.valueOf(minFormatSize));
-
-        return bestSizedFile;
+                        tempFormatName = formatName[i];
+                        formatName[i] = formatName[j];
+                        formatName[j] = tempFormatName;
+                    }
+            addFormatsToGui();
+            bestFormatTypeLabel.setText(formatName[0]);
+            MyLogger.addHistory("Best Compressed "+outFileName+"."+formatName[0]);
+            bestFormatSizelabel.setText(String.valueOf(formatSizes[0]));    
+            return new File(tempPath + File.separator + outFileName + "."+formatName[0]);
+        } 
+        catch (Exception ex) 
+        {
+            trayIcon.setToolTip("getBestFormat Error");
+            throw new Exception("getBestFormat Error" + "at" + className + newline + ex.getMessage());
+        } 
     }
 
-    /**
-     * Sıkıştırma yapılan formatlara ait dosya boyutlarının uygun değişkenlere atandığı method. Ayrıca 
-     * bu değerler formatlara ait JLabel bileşenlerine de yazılır.
-     */
-    private void setCompressSizes() {
-
-        tarBz2Size =FileOperations.getFileSizeInMegabytes(tarBz2File);
-        tarGzSize = FileOperations.getFileSizeInMegabytes(tarGzFile);
-        tarLzmaSize = FileOperations.getFileSizeInMegabytes(tarLzmaFile);
-        tarSize = FileOperations.getFileSizeInMegabytes(tarFile);
-        zipSize = FileOperations.getFileSizeInMegabytes(zipFile);
-
-        tarBz2ResultLabel.setText(String.valueOf(tarBz2Size));
-        tarGzResultLabel.setText(String.valueOf(tarGzSize));
-        tarLzmaResultLabel.setText(String.valueOf(tarLzmaSize));
-        tarResultLabel.setText(String.valueOf(tarSize));
-        zipResultLabel.setText(String.valueOf(zipSize));
-
-        if (!inFile.isDirectory()) {
-            bz2Size = FileOperations.getFileSizeInMegabytes(bz2File);
-            gzSize = FileOperations.getFileSizeInMegabytes(gzFile);
-            lzmaSize = FileOperations.getFileSizeInMegabytes(lzmaFile);
-
-            gzResultLabel.setText(String.valueOf(gzSize));
-            bz2ResultLabel.setText(String.valueOf(bz2Size));
-            lzmaResultLabel.setText(String.valueOf(lzmaSize));
-        }
-    }
-
-    /**
-     * Sıkıştırma yapılacak formatların herbiri için farklı dosyaların oluşturulduğu method.
-     */
-    private void setFiles() {
-        tarBz2File = new File(tempPath + File.separator + outFileName + ".tar.bz2");
-        tarGzFile = new File(tempPath + File.separator + outFileName + ".tar.gz");
-        tarLzmaFile = new File(tempPath + File.separator + outFileName + ".tar.lzma");
-        tarFile = new File(tempPath + File.separator + outFileName + ".tar");
-        zipFile = new File(tempPath + File.separator + outFileName + ".zip");
-        
-        if(!inFile.isDirectory()) {
-            bz2File = new File(tempPath + File.separator + outFileName + ".bz2");
-            lzmaFile = new File(tempPath + File.separator + outFileName + ".lzma");
-            gzFile = new File(tempPath + File.separator + outFileName + ".gz");
-        }
+    private void compress() throws Exception
+    {
+        try
+        {   
+            if (!inFile.isDirectory()) 
+                formatName = formats;
+            else 
+                formatName = formatsForDirectory;
+            formatSizes = new double[formatName.length];
+            archivedFiles=new File[formatName.length];   
+            
+            for(int i=0;i<archivedFiles.length;i++)
+                archivedFiles[i] = new File(tempPath + File.separator + outFileName + "."+formatName[i]);
+            
+            new Tar.CreateArchive(inFile, archivedFiles[0], compressDialog);
+            for(int i=1;i<archivedFiles.length;i++)
+                if (!compressDialog.isCanceled()) 
+                {
+                    if(i<=Compressors.length)
+                        Compressors[i-1].Compress(inFile, archivedFiles[i], true, compressDialog);
+                    else    
+                        Compressors[(i%Compressors.length)-1].Compress(inFile, archivedFiles[i], false, compressDialog);
+                }
+            
+            for(int i=0;i<formatSizes.length;i++)
+                formatSizes[i]=FileOperations.getFileSizeInMegabytes(archivedFiles[i]);
+        } 
+        catch (Exception ex) 
+        {
+            trayIcon.setToolTip("compress Error");
+            throw new Exception("compress Error" + "at" + className + newline + ex.getMessage());
+        } 
     }
     
-    /**
-     * Threadi başlatmakta kullanılan method.
-     */
     public void run() {
-        findBestFormat();
+        try {
+            findBestFormat();
+        } catch (Exception ex) {
+            MyLogger.getLogger().info(ex.getMessage());
+        }
     }
 }

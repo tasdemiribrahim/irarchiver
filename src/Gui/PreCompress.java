@@ -1,82 +1,79 @@
 package Gui;
 
-import Common.CompressHandler;
-import Common.MainVocabulary;
-import Common.StringOperations;
-import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
-import java.awt.Toolkit;
+import java.awt.TrayIcon;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.File;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
-import javax.swing.JComboBox;
+import javax.swing.JSpinner;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JRadioButton;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
+import javax.swing.SpinnerListModel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import javax.swing.text.BadLocationException;
+import Common.CompressHandler;
+import Common.MainVocabulary;
+import Common.MyLogger;
+import Common.StringOperations;
+import javax.swing.JOptionPane;
 
-/**
- * Dosya şıkıştırma menüsünü oluşturan sınıf.
- */
-public class PreCompress extends JFrame implements ActionListener, ChangeListener, KeyListener, MainVocabulary {
+public class PreCompress extends JFrame implements ActionListener, ChangeListener, KeyListener, MainVocabulary 
+{
+    private String className = PreCompress.class.getName(),outFileDirectory,outFileName,password = "";
+    private JLabel inFileLabel, outFileLabel, selectFormatLabel, fileNameLabel, passwordLabel, checkPasswordLabel, multiPartLabel;
+    private JCheckBox overwriteCheckBox, showPasswordCheckBox, setPasswordCheckBox, setMultiPartCheckBox;
+    private JTextField inFileTextBox, passwordTextBox, outFileDirectoryTextBox, fileNameTextBox, partSizeTextBox;
+    private JButton outFileChooserButton, actionButton, cancelButton;
+    private JSpinner selectFormatSpinner;
+    private JPanel mainPanel, selectFormatPanel, generalPanel, advancedPanel, passwordPanel, multiPartPanel;
+    private JRadioButton userControlledCompressionRadioButton, performanceBasedCompressionRadioButton;
+    private JTabbedPane compressionTabbedPane;
+    private JPasswordField passwordField, checkPasswordField;
+    private JFileChooser outFileChooser;
+    private File inFile;
+    private CompressHandler handleCompress;
+    private int partSize = 0, maxFileNameTextBoxLength = 15;
 
-    String className = PreCompress.class.getName();
-    JLabel inFileLabel, outFileLabel, selectFormatLabel, fileNameLabel, passwordLabel, checkPasswordLabel, multiPartLabel;
-    JCheckBox overwriteCheckBox, showPasswordCheckBox, setPasswordCheckBox, setMultiPartCheckBox;
-    JTextField inFileTextBox, passwordTextBox, outFileDirectoryTextBox, fileNameTextBox, partSizeTextBox;
-    JButton outFileChooserButton, actionButton, cancelButton;
-    JComboBox selectFormatComboBox;
-    JPanel mainPanel, selectFormatPanel, generalPanel, advancedPanel, passwordPanel, multiPartPanel;
-    JRadioButton userControlledCompressionRadioButton, performanceBasedCompressionRadioButton;
-    JTabbedPane compressionTabbedPane;
-    JPasswordField passwordField, checkPasswordField;
-    JFileChooser outFileChooser;
-    File inFile;
-    CompressHandler handleCompress;
-    CompareAndCompress performanceBasedCompress;
-    String password = "";
-    int partSize = 0, maxFileNameTextBoxLength = 15;
-
-    /**
-     * Dosya sıkıştırma seçeneklerinin yer aldığı dosya sıkıştırma menüsünü oluşturmak için 
-     * Gui.Precompress sınıfının nesnesinin oluşturulmasında kullanılan kurucu methodu.
-     * @param inFile sıkıştırılacak dosyayı tutan değişken.
-     */
-    public PreCompress(File inFile) {
-
-        this.inFile = inFile;
-        initComponents();
-        if (populateGui()) {
-            initiateActions();
+    public PreCompress(File inFile) throws Exception 
+    {
+        try
+        {
+            this.inFile = inFile;
+            initComponents();
+            if (createAndShowGUI()) 
+            {
+                initiateActions();
+                addAssistiveSupport();
+            }
+        }
+        catch (Exception ex) 
+        { 
+            trayIcon.setToolTip(constructError);
+            throw new Exception(constructError + className + newline + ex.getMessage());
         }
     }
-
-    /**
-     * Arayüz bileşenlerinin tanımlandığı method.
-     */
-    public void initComponents() {
+    
+    public void initComponents() 
+    {
+        outFileDirectory=inFile.getParent().toString();
+        
         inFileLabel = new JLabel("Source:");
         outFileLabel = new JLabel("Destination:");
         selectFormatLabel = new JLabel("Compression Format:");
         fileNameLabel = new JLabel("Archive Name");
-        selectFormatComboBox = new JComboBox();
         overwriteCheckBox = new JCheckBox("Overwrite If File Exists", false);
         inFileTextBox = new JTextField(25);
         outFileDirectoryTextBox = new JTextField(25);
@@ -106,13 +103,10 @@ public class PreCompress extends JFrame implements ActionListener, ChangeListene
         setMultiPartCheckBox = new JCheckBox("Set Multi Part");
     }
 
-    /**
-     * Arayüz ve arayüz bileşenlerinin özelliklerinin belirlendeği method. Arayüz bileşenlerinin
-     * arayüz içerisindeki konumlarını belirlemek için GridBagLayout() nesnesi kullanılmıştır.
-     * @return işlemler sırasında herhangi bir hata olursa false, olmazsa true.
-     */
-    public boolean populateGui() {
-        try {
+    public boolean createAndShowGUI() throws Exception 
+    {
+        try 
+        {
             setLayout(new GridBagLayout());
             GridBagConstraints constraints = new GridBagConstraints();
             constraints.fill = GridBagConstraints.HORIZONTAL;
@@ -123,11 +117,8 @@ public class PreCompress extends JFrame implements ActionListener, ChangeListene
             constraints.gridwidth = 1;
             constraints.gridheight = 1;
             add(compressionTabbedPane, constraints);
-            constraints.gridx = 0;
-            constraints.gridy = 0;
             generalPanel.add(inFileLabel, constraints);
             constraints.gridx = 1;
-            constraints.gridy = 0;
             constraints.gridwidth = 2;
             generalPanel.add(inFileTextBox, constraints);
             constraints.gridx = 0;
@@ -135,21 +126,17 @@ public class PreCompress extends JFrame implements ActionListener, ChangeListene
             constraints.gridwidth = 1;
             generalPanel.add(outFileLabel, constraints);
             constraints.gridx = 1;
-            constraints.gridy = 1;
             constraints.gridwidth = 2;
             generalPanel.add(outFileDirectoryTextBox, constraints);
             constraints.gridx = 3;
-            constraints.gridy = 1;
             constraints.gridwidth = 1;
             generalPanel.add(outFileChooserButton, constraints);
             constraints.gridx = 0;
             constraints.gridy = 2;
             generalPanel.add(fileNameLabel, constraints);
             constraints.gridx = 1;
-            constraints.gridy = 2;
             constraints.gridwidth = 2;
             generalPanel.add(fileNameTextBox, constraints);
-            constraints.gridx = 1;
             constraints.gridy = 3;
             constraints.gridwidth = 1;
             generalPanel.add(overwriteCheckBox, constraints);
@@ -162,82 +149,66 @@ public class PreCompress extends JFrame implements ActionListener, ChangeListene
             constraints.gridwidth = 1;
             generalPanel.add(actionButton, constraints);
             constraints.gridx = 2;
-            constraints.gridy = 5;
             generalPanel.add(cancelButton, constraints);
 
             constraints.gridx = 0;
             constraints.gridy = 0;
             mainPanel.add(userControlledCompressionRadioButton, constraints);
-            constraints.gridx = 1;
-            constraints.gridy = 0;
+            constraints.gridx = 2;
             mainPanel.add(selectFormatPanel, constraints);
             constraints.gridx = 0;
             constraints.gridy = 2;
             mainPanel.add(performanceBasedCompressionRadioButton, constraints);
 
-            constraints.gridx = 0;
+            if (inFile.isFile()) 
+                selectFormatSpinner = new JSpinner(new SpinnerListModel(formats));
+            else if (inFile.isDirectory()) 
+                selectFormatSpinner = new JSpinner(new SpinnerListModel(formatsForDirectory));
+           
             constraints.gridy = 0;
             selectFormatPanel.add(selectFormatLabel, constraints);
-            constraints.gridx = 0;
             constraints.gridy = 1;
-            constraints.gridwidth = 2;
-            selectFormatPanel.add(selectFormatComboBox, constraints);
+            constraints.gridwidth = 3;
+            selectFormatPanel.add(selectFormatSpinner, constraints);
 
-            constraints.gridx = 0;
             constraints.gridy = 0;
             constraints.gridwidth = 1;
             advancedPanel.add(setPasswordCheckBox, constraints);
-            constraints.gridx = 0;
             constraints.gridy = 1;
             advancedPanel.add(passwordPanel, constraints);
-            constraints.gridx = 0;
             constraints.gridy = 2;
             advancedPanel.add(setMultiPartCheckBox, constraints);
-            constraints.gridx = 0;
             constraints.gridy = 3;
             advancedPanel.add(multiPartPanel, constraints);
 
-            constraints.gridx = 0;
             constraints.gridy = 0;
             passwordPanel.add(passwordLabel, constraints);
             constraints.gridx = 1;
-            constraints.gridy = 0;
             passwordPanel.add(passwordTextBox, constraints);
-            constraints.gridx = 1;
-            constraints.gridy = 0;
             passwordPanel.add(passwordField, constraints);
             constraints.gridx = 0;
             constraints.gridy = 1;
             passwordPanel.add(checkPasswordLabel, constraints);
             constraints.gridx = 1;
-            constraints.gridy = 1;
             passwordPanel.add(checkPasswordField, constraints);
             constraints.gridx = 0;
             constraints.gridy = 2;
             passwordPanel.add(showPasswordCheckBox, constraints);
 
-            constraints.gridx = 0;
             constraints.gridy = 0;
             multiPartPanel.add(multiPartLabel, constraints);
             constraints.gridx = 1;
-            constraints.gridy = 0;
             multiPartPanel.add(partSizeTextBox, constraints);
 
             compressionTabbedPane.addTab("General", generalPanel);
             compressionTabbedPane.addTab("Advanced", advancedPanel);
-
-            if (inFile.isFile()) {
-                fillComboBoxForFiles();
-            } else if (inFile.isDirectory()) {
-                fillComboBoxForDirectories();
-            }
 
             userControlledCompressionRadioButton.setSelected(true);
             outFileChooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
             fileNameTextBox.setText(inFile.getName());
             inFileTextBox.setText(inFile.toString());
             inFileTextBox.setEnabled(false);
-            outFileDirectoryTextBox.setEnabled(false);
+            outFileDirectoryTextBox.setText(outFileDirectory);
             passwordTextBox.setEnabled(false);
             passwordTextBox.setVisible(false);
             passwordField.setEnabled(false);
@@ -254,25 +225,22 @@ public class PreCompress extends JFrame implements ActionListener, ChangeListene
             multiPartPanel.setBorder(BorderFactory.createEtchedBorder());
 
             pack();
-            Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
-            Dimension form = getSize();
-            setLocation((screen.width - form.width) / 2, (screen.height - form.height) / 2);
+            setLocationRelativeTo(null);
             setResizable(false);
             setTitle(compressionMenuTitle);
             setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
             setVisible(true);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            JOptionPane.showMessageDialog(this, populateGuiError + " From:" + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
-            return false;
-        }
+        } 
+        catch (Exception ex) 
+        {
+            trayIcon.setToolTip(populateGuiError);
+            throw new Exception(populateGuiError + "at" + className + newline + ex.getMessage());
+        } 
         return true;
     }
 
-    /**
-     * Arayüz bileşenlerine uygun interface atamalarının yapıldığı method. 
-     */
-    public void initiateActions() {
+    public void initiateActions() 
+    {
         actionButton.addActionListener(this);
         cancelButton.addActionListener(this);
         outFileChooserButton.addActionListener(this);
@@ -285,316 +253,261 @@ public class PreCompress extends JFrame implements ActionListener, ChangeListene
         fileNameTextBox.addKeyListener(this);
     }
     
-     /**
-     * ActionListener interface inin bir methodudur. Herhangi bir ActionEvent meydana 
-     * gelmesi durumunda ActionEventi gönderen bileşene ait fonksiyonun çağırıldığı method.
-     * @param e Meydana gelen ActionEventinin hangi arayüz bileşeni tarafından oluşturulduğunu 
-     * belirlemekte kullanılan değişken. 
-     */
-    public void actionPerformed(ActionEvent e) {
-        if (e.getSource().equals(cancelButton)) {
-            this.dispose();
-        } else if (e.getSource().equals(outFileChooserButton)) {
-            outFileChooserButtonActionPerformed();
-        } else if (e.getSource().equals(actionButton)) {
-            actionButtonActionPerformed();
-        } else if (e.getSource().equals(userControlledCompressionRadioButton)) {
-            userControlledCompressionRadioButtonActionPerformed();
-        } else if (e.getSource().equals(performanceBasedCompressionRadioButton)) {
-            performanceBasedCompressionRadioButtonActionPerformed();
-        } else if (e.getSource().equals(showPasswordCheckBox)) {
-            showPasswordCheckBoxActionPerformed();
-        } else if (e.getSource().equals(setPasswordCheckBox)) {
-            setPasswordCheckBoxActionPerformed();
-        } else if (e.getSource().equals(setMultiPartCheckBox)) {
-            setMultiPartCheckBoxActionPerformed();
-        }
+    public void actionPerformed(ActionEvent e) 
+    {
+        try
+        {
+            if (e.getSource().equals(cancelButton)) 
+                closeActionPerformed();
+            else if (e.getSource().equals(outFileChooserButton)) 
+                outFileChooserButtonActionPerformed();
+            else if (e.getSource().equals(actionButton)) 
+                actionButtonActionPerformed();
+            else if (e.getSource().equals(userControlledCompressionRadioButton)) 
+                compressionRadioButtonActionPerformed(true);
+            else if (e.getSource().equals(performanceBasedCompressionRadioButton))
+                compressionRadioButtonActionPerformed(false);
+            else if (e.getSource().equals(showPasswordCheckBox))
+                showPasswordCheckBoxActionPerformed();
+            else if (e.getSource().equals(setPasswordCheckBox))
+                setPasswordCheckBoxActionPerformed();
+            else if (e.getSource().equals(setMultiPartCheckBox))
+                setMultiPartCheckBoxActionPerformed();
+        } 
+        catch (InterruptedException ex) 
+        {
+            MyLogger.getLogger().info(ex.getMessage());
+        } 
+        catch (Exception ex) 
+        {
+            MyLogger.getLogger().info(ex.getMessage());
+        } 
+    }
+
+    private void addAssistiveSupport() 
+    {
+        inFileLabel.setLabelFor(inFileTextBox);
+        outFileLabel.setLabelFor(outFileDirectoryTextBox);
+        fileNameLabel.setLabelFor(fileNameTextBox);
+        selectFormatLabel.setLabelFor(selectFormatSpinner);
+        passwordLabel.setLabelFor(passwordTextBox);
+        passwordLabel.setLabelFor(passwordField);
+        checkPasswordLabel.setLabelFor(checkPasswordField);
+        multiPartLabel.setLabelFor(partSizeTextBox);
+        
+        outFileChooserButton.setToolTipText("Opens output directory chooser window(CTRL+F1)");
+        selectFormatSpinner.setToolTipText("Choose archive format(bz2,lzma,gz is avaible for single files)");
+        
+        overwriteCheckBox.setMnemonic(KeyEvent.VK_V);
+        setMultiPartCheckBox.setMnemonic(KeyEvent.VK_M);
+        setPasswordCheckBox.setMnemonic(KeyEvent.VK_P);
+        showPasswordCheckBox.setMnemonic(KeyEvent.VK_S);
+        actionButton.setMnemonic(KeyEvent.VK_O);
+        cancelButton.setMnemonic(KeyEvent.VK_C);
+        outFileChooserButton.setMnemonic(KeyEvent.VK_F1);
+        userControlledCompressionRadioButton.setMnemonic(KeyEvent.VK_U);
+        performanceBasedCompressionRadioButton.setMnemonic(KeyEvent.VK_B);
+   
+    }
+
+    private void closeActionPerformed() throws Exception 
+    {
+        Gui.FrameOperations.deleteFrame(this.getClass().toString(),false);
+        this.dispose();
     }
     
-    /**
-     * inFile dosyasının tek bir dosya olması durumunda, dosyanın sıkıştırmasında kullanılacak formatları 
-     * gösteren selectFormatComboBox bileşeninine item değerlerinin atandığı method. 
-     */
-    public void fillComboBoxForFiles() {
-
-        selectFormatComboBox.removeAllItems();
-        for (String format : formats) {
-            selectFormatComboBox.addItem(format);
-        }
+    private void showPasswordCheckBoxActionPerformed() 
+    {
+        boolean choise=showPasswordCheckBox.isSelected();
+        passwordField.setVisible(!choise);
+        passwordField.setEnabled(!choise);
+        checkPasswordField.setVisible(!choise);
+        checkPasswordField.setEnabled(!choise);
+        checkPasswordLabel.setVisible(!choise);
+        passwordTextBox.setEnabled(choise);
+        passwordTextBox.setVisible(choise);
+        passwordTextBox.setText(null);
+        checkPasswordField.setText(null);
+        passwordField.setText(null);
     }
 
-    
-    /**
-     * inFile dosyasının bir dizin olması durumunda, dosyanın sıkıştırmasında kullanılacak formatları 
-     * tutan selectFormatComboBox bileşeninine item değerlerinin atandığı method. 
-     */
-    public void fillComboBoxForDirectories() {
-
-        selectFormatComboBox.removeAllItems();
-        for (int i = 3; i < formats.length; i++) {
-            selectFormatComboBox.addItem(formats[i]);
-        }
-    }
-
-    /**
-     * showPasswordCheckBox checkBoxuna tıklanması durumunda çağrılacak olan method.
-     */
-    private void showPasswordCheckBoxActionPerformed() {
-        if (!showPasswordCheckBox.isSelected()) {
-            passwordField.setVisible(true);
-            passwordField.setEnabled(true);
-            checkPasswordField.setVisible(true);
-            checkPasswordField.setEnabled(true);
-            checkPasswordLabel.setVisible(true);
-            passwordTextBox.setEnabled(false);
-            passwordTextBox.setVisible(false);
-            passwordTextBox.setText(null);
-        } else {
-            passwordField.setVisible(false);
-            passwordField.setEnabled(false);
-            passwordField.setText(null);
-            checkPasswordField.setVisible(false);
-            checkPasswordField.setEnabled(false);
-            checkPasswordField.setText(null);
-            checkPasswordLabel.setVisible(false);
-            passwordTextBox.setEnabled(true);
-            passwordTextBox.setVisible(true);
-        }
-    }
-
-    /**
-     * outFileChooserButton buttonuna basılması durumunda çağırılan method. outFileChooser adında 
-     * bir JFileChooser oluşturularak, sıkıştırılacak olan dosyanın kaydedileceği dizin seçilir.
-     */
-    public void outFileChooserButtonActionPerformed() {
+    public void outFileChooserButtonActionPerformed()
+    {
         int value = outFileChooser.showSaveDialog(this);
-        if (value == JFileChooser.APPROVE_OPTION) {
-            String outFileDirectory = outFileChooser.getSelectedFile().toString();
-            
-            if (outFileDirectory.compareTo(inFile.getAbsolutePath()) != 0) {
+        if (value == JFileChooser.APPROVE_OPTION) 
+        {
+            outFileDirectory = outFileChooser.getSelectedFile().toString();
+            if (outFileDirectory.compareTo(inFile.getAbsolutePath()) != 0)
                 outFileDirectoryTextBox.setText(outFileDirectory);
-            } else {
-                JOptionPane.showMessageDialog(this, outputEqualsInputWarning, "Warning", JOptionPane.WARNING_MESSAGE);
-            }
+            else
+                trayIcon.displayMessage("Warning !",outputEqualsInputWarning, TrayIcon.MessageType.ERROR);
         }
     }
 
-    /**
-     * actionButton buttonuna basılması durumunda çağırılan method. Gerekli kontroller yapıldıktan sonra
-     * kullanıcı tarafından girilmiş olan seçeneklere göre, sıkıştırma işleminin gerçekleşmesi için 
-     * handleCompress sınıfı veya CompareAndCompress sınıfı çağrılır.
-     */
-    private void actionButtonActionPerformed() {
-        Thread compressThread;
-        boolean check;
-        
-        if(!fileNameTextBox.getText().isEmpty()) {
-            check = StringOperations.checkFileName(fileNameTextBox.getText());
-            
-            if(check) {
-                if (!outFileDirectoryTextBox.getText().isEmpty() && userControlledCompressionRadioButton.isSelected()) {
-                    
-                    String outputFilePath = outFileDirectoryTextBox.getText() + File.separator + fileNameTextBox.getText();
-                    String selectedCompressionType = selectFormatComboBox.getSelectedItem().toString();
-                    File outFile = new File(outputFilePath + "." + selectedCompressionType);
+    private void actionButtonActionPerformed() throws InterruptedException, Exception
+    {
+        try
+        {
+            Thread compressThread;
+            boolean check,overwrite=overwriteCheckBox.isSelected();
+            boolean performansSelected=performanceBasedCompressionRadioButton.isSelected();
+            outFileName=fileNameTextBox.getText();
+            outFileDirectory=outFileDirectoryTextBox.getText();
+            if(!outFileName.isEmpty())
+            {
+                check = StringOperations.checkFileName(outFileName);
+                int confirm = JOptionPane.YES_OPTION;
+                if(check) 
+                {
+                    if (!outFileDirectory.isEmpty() && !performansSelected) 
+                    {
+                        if(!(new File(outFileDirectory)).exists())
+                            confirm = JOptionPane.showConfirmDialog(this, "Output Directory Doesn't Exist.\nDo You Want To Create?", "Warning!", JOptionPane.YES_NO_OPTION);
+                        if(confirm==JOptionPane.YES_OPTION)
+                        {  
+                            (new File(outFileDirectory)).mkdir();
+                            String selectedCompressionType = selectFormatSpinner.getValue().toString();
+                            File outFile = new File(outFileDirectory + File.separator + outFileName + "." + selectedCompressionType);
+                            
+                            if (password.length() != 0 && partSize != 0)
+                                handleCompress = new CompressHandler(inFile, outFile, selectedCompressionType, password, partSize, overwrite);
+                            else if (password.length() != 0)
+                                handleCompress = new CompressHandler(inFile, outFile, selectedCompressionType, password, overwrite);
+                            else if (partSize != 0)
+                                handleCompress = new CompressHandler(inFile, outFile, selectedCompressionType, partSize, overwrite);
+                            else
+                                handleCompress = new CompressHandler(inFile, outFile, selectedCompressionType, overwrite);
 
-                    if (password.length() != 0 && partSize != 0) {
-                        handleCompress = new CompressHandler(inFile, outFile, selectedCompressionType, password, partSize, overwriteCheckBox.isSelected());
-                    } else if (password.length() != 0) {
-                        handleCompress = new CompressHandler(inFile, outFile, selectedCompressionType, password, overwriteCheckBox.isSelected());
-                    } else if (partSize != 0) {
-                        handleCompress = new CompressHandler(inFile, outFile, selectedCompressionType, partSize, overwriteCheckBox.isSelected());
-                    } else {
-                        handleCompress = new CompressHandler(inFile, outFile, selectedCompressionType, overwriteCheckBox.isSelected());
-                    }
+                            compressThread = new Thread(handleCompress);
+                            compressThread.start();
+                            if (Thread.interrupted()) 
+                            {
+                                trayIcon.setToolTip("HandleCompress Thread Interrupted");
+                                throw new InterruptedException("HandleCompress Thread Interrupted at " + className);
+                            }
+                            closeActionPerformed();
+                        }
+                    } 
+                    else if (!outFileDirectory.isEmpty() && performansSelected) 
+                    {
+                        File outFileParent = new File(outFileDirectory);
 
-                    compressThread = new Thread(handleCompress);
-                    compressThread.start();
+                        frames[Gui.Main.getFramesLenght()] = new CompareAndCompress(inFile, outFileParent, outFileName, overwrite);
+                        Gui.Main.setFramesLenght(Gui.Main.getFramesLenght()+1);
 
-                    this.dispose();
-                } else if (!outFileDirectoryTextBox.getText().isEmpty() && performanceBasedCompressionRadioButton.isSelected()) {
-                   
-                    String outFileName = fileNameTextBox.getText();
-                    File outFileParent = new File(outFileDirectoryTextBox.getText());
-                    
-                    performanceBasedCompress = new CompareAndCompress(inFile, outFileParent, outFileName, overwriteCheckBox.isSelected());
-                   
-                    compressThread = new Thread(performanceBasedCompress);
-                    compressThread.start();
-
-                    this.dispose();
-                } else if (outFileDirectoryTextBox.getText().isEmpty()) {
-                    JOptionPane.showMessageDialog(null, outputFolderWarning, "Warning!", JOptionPane.WARNING_MESSAGE);
-                }
-            } else {
-                JOptionPane.showMessageDialog(null, unsupportedCharWarning, "Warning!", JOptionPane.WARNING_MESSAGE);
-            }
-        }  else if (fileNameTextBox.getText().isEmpty()) {
-            JOptionPane.showMessageDialog(null, nullFileNameWarning, "Warning!", JOptionPane.WARNING_MESSAGE);
+                        compressThread = new Thread((CompareAndCompress)frames[Gui.Main.getFramesLenght()-1]);
+                        compressThread.start();
+                        if (Thread.interrupted()) 
+                        {
+                            trayIcon.setToolTip("performanceBasedCompress Thread Interrupted");
+                            throw new InterruptedException("performanceBasedCompress Thread Interrupted at " + className);
+                        }
+                        closeActionPerformed();
+                    } 
+                    else if (outFileDirectory.isEmpty()) 
+                        trayIcon.displayMessage("Warning!",outputFolderWarning, TrayIcon.MessageType.WARNING);
+                } 
+                else 
+                    trayIcon.displayMessage("Warning!",unsupportedCharWarning, TrayIcon.MessageType.WARNING);
+            }  
+            else if (outFileName.isEmpty()) 
+                    trayIcon.displayMessage("Warning!",nullFileNameWarning, TrayIcon.MessageType.WARNING);
+        } 
+        catch (Exception ex) 
+        {
+            trayIcon.setToolTip("Action error");
+            throw new Exception("Action error" + " at " + className + newline + ex.getMessage());
         }
     }
 
-    /**
-     * performanceBasedCompressionRadioButton radioButtonuna basılması durumunda çağırılacak olan method. 
-     * Performans tabanlı sıkıştırma seçilirse arayüzden Advance tabı kaldırılır. Bunun nedeni performans 
-     * tabanlı sıkıştırmanın şifreleme ve parçalı sıkıştırmayı desteklememesidir.
-     */
-    private void performanceBasedCompressionRadioButtonActionPerformed() {
-
-        if (performanceBasedCompressionRadioButton.isSelected()) {     
-            selectFormatComboBox.setEnabled(false);
-            selectFormatLabel.setEnabled(false);
-            selectFormatPanel.setEnabled(false);
-            userControlledCompressionRadioButton.setSelected(false);
+    private void compressionRadioButtonActionPerformed(boolean choise) 
+    {
+        selectFormatSpinner.setEnabled(choise);
+        selectFormatLabel.setEnabled(choise);
+        selectFormatPanel.setEnabled(choise);
+        overwriteCheckBox.setSelected(!choise);
+        overwriteCheckBox.setEnabled(choise);
+        userControlledCompressionRadioButton.setSelected(choise);
+        performanceBasedCompressionRadioButton.setSelected(!choise);
+        if(!choise)
             compressionTabbedPane.remove(advancedPanel);
-        } else {
-          
-            performanceBasedCompressionRadioButton.setSelected(true);
-        }
-    }
-
-    /**
-     * userControlledCompressionRadioButton radioButtonuna basılması durumunda 
-     * çağırılacak olan method.
-     */
-    private void userControlledCompressionRadioButtonActionPerformed() {
-
-        if (userControlledCompressionRadioButton.isSelected()) {
-        
-            selectFormatComboBox.setEnabled(true);
-            selectFormatLabel.setEnabled(true);
-            selectFormatPanel.setEnabled(true);
-            performanceBasedCompressionRadioButton.setSelected(false);
+        else
             compressionTabbedPane.add("Advance", advancedPanel);
-        } else {
-
-            userControlledCompressionRadioButton.setSelected(true);
-
-        }
     }
 
-    /**
-     * ChangeListener interface inin bir methodudur. ChangeEvent i gönderen bileşen eğer 
-     * compressionTabbedPane ise compressionTabbedPaneStateChanged methodu çağırılır. 
-     * @param e ChangeListener interface ine sahip bir bileşen tarafından gönderilen
-     * ChangeEvent türünden bir değişken.
-     */
-    public void stateChanged(ChangeEvent e) {
-
-        if (e.getSource().equals(compressionTabbedPane)) {
+    public void stateChanged(ChangeEvent e) 
+    {
+        if (e.getSource().equals(compressionTabbedPane)) 
             compressionTabbedPaneStateChanged();
-        }
     }
 
-    /**
-     * compressionTabbedPane de bulunan Advance tabından General tabına geçişte Advance tabına ait
-     * bazı kontrollerin ve atamaların gerçekleştirildiği method.
-     */
-    public void compressionTabbedPaneStateChanged() {
-
-        if (compressionTabbedPane.getSelectedIndex() != 1) {
-
-            if (setPasswordCheckBox.isSelected()) {
-            
-                if (!passwordTextBox.getText().isEmpty()) {
+    public void compressionTabbedPaneStateChanged() 
+    {
+        String pass = new String(passwordField.getPassword());
+        String checkPass = new String(checkPasswordField.getPassword());
+        if (compressionTabbedPane.getSelectedIndex() != 1) 
+        {
+            if (setPasswordCheckBox.isSelected()) 
+            {
+                if (!passwordTextBox.getText().isEmpty()) 
                     password = passwordTextBox.getText();
-                } else if (!passwordField.getText().isEmpty()) {
-                
-                    String pass = passwordField.getText();
-                    String check = checkPasswordField.getText();
-
-                    if (!check.equals(pass)) {
+                else if (!pass.isEmpty()) 
+                {
+                    if (!checkPass.equals(pass)) 
+                    {
                         compressionTabbedPane.setSelectedIndex(1);
-                        JOptionPane.showMessageDialog(null, passwordFieldsNotEqualWarning, "Warning!", JOptionPane.WARNING_MESSAGE);
-                    } else {
-                        password = passwordField.getText();
-                    }
+                        trayIcon.displayMessage("Warning!",passwordFieldsNotEqualWarning, TrayIcon.MessageType.WARNING);
+                    } 
+                    else 
+                        password = pass;
                 } 
             }
-
-            if (setMultiPartCheckBox.isSelected()) {
-
-                if (!partSizeTextBox.getText().isEmpty()) {
-
+            if (setMultiPartCheckBox.isSelected()) 
+            {
+                if (!partSizeTextBox.getText().isEmpty()) 
+                {
                     String size = partSizeTextBox.getText();
                     boolean check = StringOperations.checkPartSize(size);
-                    
-                    if (!check) {
+                    if (!check) 
+                    {
                         compressionTabbedPane.setSelectedIndex(1);
-                        JOptionPane.showMessageDialog(null, onlyNumericCharsWarning, "Warning!", JOptionPane.WARNING_MESSAGE);
-                    } else {
+                        trayIcon.displayMessage("Warning!",onlyNumericCharsWarning, TrayIcon.MessageType.WARNING);
+                    } 
+                    else 
                         partSize = Integer.parseInt(size) * 1024 * 1024;
-                    }
                 }
             }
         }
     }
 
-    /**
-     * setMultiPartCheckBox checkBoxuna tıklanması durumunda çağırılacak olan method.
-     */
-    private void setMultiPartCheckBoxActionPerformed() {
-
-        if (setMultiPartCheckBox.isSelected()) {
-            partSizeTextBox.setEnabled(true);
-            multiPartLabel.setEnabled(true);
-        } else {
-            partSizeTextBox.setEnabled(false);
-            partSizeTextBox.setText(null);
-            multiPartLabel.setEnabled(false);
-        }
+    private void setMultiPartCheckBoxActionPerformed() 
+    {
+        boolean choise=setMultiPartCheckBox.isSelected();
+        partSizeTextBox.setEnabled(choise);
+        multiPartLabel.setEnabled(choise);
+        partSizeTextBox.setText(null);
     }
 
-     /**
-     * setPasswordCheckBox checkBoxuna tıklanması durumunda çağırılacak olan method.
-     */
-    private void setPasswordCheckBoxActionPerformed() {
-
-        if (setPasswordCheckBox.isSelected()) {
-            passwordField.setEnabled(true);
-            checkPasswordField.setEnabled(true);
-            showPasswordCheckBox.setEnabled(true);
-            passwordLabel.setEnabled(true);
-            checkPasswordLabel.setEnabled(true);
-        } else {
-            passwordLabel.setEnabled(false);
-            passwordTextBox.setEnabled(false);
-            passwordTextBox.setVisible(false);
-            passwordTextBox.setText(null);
-            passwordField.setEnabled(false);
-            passwordField.setVisible(true);
-            passwordField.setText(null);
-            checkPasswordField.setEnabled(false);
-            checkPasswordField.setVisible(true);
-            checkPasswordField.setText(null);
-            checkPasswordLabel.setEnabled(false);
-            checkPasswordLabel.setVisible(true);
-            showPasswordCheckBox.setEnabled(false);
-            showPasswordCheckBox.setSelected(false);
-        }
+    private void setPasswordCheckBoxActionPerformed() 
+    {
+        boolean choise=setPasswordCheckBox.isSelected();
+        passwordField.setEnabled(choise);
+        checkPasswordField.setEnabled(choise);
+        showPasswordCheckBox.setEnabled(choise);
+        passwordLabel.setEnabled(choise);
+        checkPasswordLabel.setEnabled(choise);
+        passwordTextBox.setEnabled(choise);
+        passwordTextBox.setText(null);
+        passwordField.setText(null);
+        checkPasswordField.setText(null);
     }
 
-    /**
-     * Keylistener interface ine ait bir methoddur. fileNameTextBox textboxuna girilen karakter sayısını 
-     * maxFileNameTextBoxLength olarak sınırlamakta kullanılır.
-     * @param e Klavye ile girilen karakter ile ilgili işlemler yapmakta kullanılan KeyEvent türündeki 
-     * değişken. Bu method içerisinde kullanılmamaktadır.
-     */
-    public void keyPressed(KeyEvent e) {
-        if(fileNameTextBox.getText().length() >= maxFileNameTextBoxLength){
+    public void keyPressed(KeyEvent e)
+    {
+        if(fileNameTextBox.getText().length() >= maxFileNameTextBoxLength)
              fileNameTextBox.setText(fileNameTextBox.getText().substring(0, maxFileNameTextBoxLength - 1));
-        }
     }
 
-    /**
-     * KeyListener interface ine ait kullanılmayan bir method.
-     */
-    public void keyReleased(KeyEvent arg0) {
-    }
-    
-    /**
-     * KeyListener interface ine ait kullanılmayan bir method.
-     */
-    public void keyTyped(KeyEvent arg0) {
-    }
+    public void keyTyped(KeyEvent e) { }
+    public void keyReleased(KeyEvent e) { }
 }

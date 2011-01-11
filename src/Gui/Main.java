@@ -1,70 +1,211 @@
 package Gui;
 
-import javax.swing.*;
-import java.awt.event.*;
-import java.awt.*;
-import Common.MainVocabulary;
-import Common.CompressHandler;
 import java.io.File;
-/**
- * Programı başlatarak ana menüyü oluşturan sınıf.
- */
-public class Main extends JFrame implements ActionListener, MainVocabulary, MouseMotionListener{
-
-    String className = Main.class.getName(); 
-    JFileChooser mainChooser, popupChooser;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.awt.AWTException;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+import java.awt.KeyboardFocusManager;
+import java.awt.MenuItem;
+import java.awt.PopupMenu;
+import java.awt.SystemTray;
+import java.awt.TrayIcon;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionListener;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
+import java.util.HashSet;
+import java.util.Set;
+import javax.swing.ButtonGroup;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JFileChooser;
+import javax.swing.JFrame;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JRadioButtonMenuItem;
+import javax.swing.KeyStroke;
+import javax.swing.UnsupportedLookAndFeelException;
+import javax.swing.UIManager;
+import javax.swing.UIManager.LookAndFeelInfo;
+import Common.MainVocabulary;
+import Common.MyLogger;
+public class Main extends JFrame implements WindowListener,ActionListener, MainVocabulary, MouseMotionListener
+{
+    static final String className = Main.class.getName();
+    private static int framesLenght=0;
+    JFileChooser mainChooser;
     JMenuBar mainMenu;
-    JMenu fileMenu, aboutMenu;
-    JMenuItem fileQuitItem, aboutInfoItem;
+    JMenu fileMenu,errorMenu,radioGroup,themeMenu,LNFMenu;
+    JMenuItem fileQuitItem, aboutInfoItem, errorLogItem,historyLogItem;
     JButton compressButton, decompressButton;
-    PreDecompress decompressFile;
-    PreCompress compressFile;
     File selectedFile;
-    CompressHandler handleCompress;
-
-    /**
-     * Ana menüyü oluşturarak programın başlatılmasını sağlayan Gui.Main sınıfının nesnesinin 
-     * oluşturulduğu kurucu methodu.
-     */
-    public Main() {
-        initComponents();
-        if (populateGui()) {
-            initiateActions();
+    SystemTray tray;
+    PopupMenu popup;
+    MenuItem aboutTrayItem, quitTrayItem, elogTrayItem, hlogTrayItem, hideTrayItem, showTrayItem;
+    ButtonGroup group,themeGroup;
+    FrameOperations operation = new FrameOperations();
+    public Main() throws Exception
+    {
+        try
+        {
+            initComponents();
+            if (createAndShowGUI()) 
+            {
+                initiateActions();
+                addAssistiveSupport();
+            }
+        }
+        catch (Exception ex) 
+        { 
+            trayIcon.setToolTip(constructError);
+            throw new Exception(constructError + className + newline + ex.getMessage());
         }
     }
 
-    /**
-     * Arayüz bileşenlerinin tanımlandığı method.
-     */
-    private void initComponents() {
+    private void addAssistiveSupport() throws Exception
+    {
+       Set forwardKeys = getFocusTraversalKeys( KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS);
+       Set newForwardKeys = new HashSet(forwardKeys);
+       newForwardKeys.add(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0));
+       setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS,newForwardKeys);
+  
+       fileMenu.setMnemonic(KeyEvent.VK_F);
+       errorMenu.setMnemonic(KeyEvent.VK_L);
+       radioGroup.setMnemonic(KeyEvent.VK_V);
+       fileQuitItem.setMnemonic(KeyEvent.VK_Q);
+       aboutInfoItem.setMnemonic(KeyEvent.VK_I);
+       errorLogItem.setMnemonic(KeyEvent.VK_E);
+       historyLogItem.setMnemonic(KeyEvent.VK_H);
+       compressButton.setMnemonic(KeyEvent.VK_C);
+       decompressButton.setMnemonic(KeyEvent.VK_D);
+       
+       mainMenu.setToolTipText("This menu can do view,log and file operations");
+       fileMenu.setToolTipText("This submenu holds information and quit items");
+       errorMenu.setToolTipText("This submenu holds error and history logs");
+       fileQuitItem.setToolTipText("To quit program");
+       aboutInfoItem.setToolTipText("To view information about program and designers");
+       errorLogItem.setToolTipText("To view error log");
+       historyLogItem.setToolTipText("To view history log");
+       compressButton.setToolTipText("To compress selected file");
+       decompressButton.setToolTipText("To decompress selected file");
+       radioGroup.setToolTipText("To view popup windows differently");
+       mainChooser.getAccessibleContext().setAccessibleName("Please choose a file to compress or decompress");
+    }
+
+    private void initComponents() throws Exception 
+    {
+        File[] deleted=new File(tempPath).listFiles();
+        for(int i=0;i<deleted.length;i++)
+            deleted[i].delete();
+        props.load(new FileInputStream("general.properties"));
+        UIManager.setLookAndFeel(props.getProperty("style"));
+            
+        Common.FileOperations.createTempDirectory();
         mainChooser = new JFileChooser();
         mainMenu = new JMenuBar();
         fileMenu = new JMenu("File");
-        aboutMenu = new JMenu("About");
         fileQuitItem = new JMenuItem("Quit");
         aboutInfoItem = new JMenuItem("Info");
+        errorMenu = new JMenu("Logs");
+        errorLogItem = new JMenuItem(errorLabel);
+        historyLogItem = new JMenuItem(historyLabel);
         compressButton = new JButton("Compress");
         decompressButton = new JButton("Decompress");
-    }
+        
+        radioGroup = new JMenu("View");
+        themeMenu = new JMenu("Themes");
+        LNFMenu = new JMenu("Style");
+        
+        group = new ButtonGroup();
+        themeGroup = new ButtonGroup();
+        
+        aboutTrayItem = new MenuItem("About");
+        quitTrayItem = new MenuItem("Quit");
+        elogTrayItem = new MenuItem(errorLabel);
+        hlogTrayItem = new MenuItem(historyLabel);
+        hideTrayItem = new MenuItem("Hide");
+        showTrayItem = new MenuItem("Show");
+        
+        popup = new PopupMenu();
+        tray = SystemTray.getSystemTray();
+     }
 
-    /**
-     * Arayüz ve arayüz bileşenlerinin özelliklerinin belirlendeği method. Arayüz bileşenlerinin
-     * arayüz içerisindeki konumlarını belirlemek için GridBagLayout() nesnesi kullanılmıştır.
-     * @return İşlemler sırasında herhangi bir hata olursa false, olmazsa true.
-     */
-    public boolean populateGui() {
-        try {
+    public boolean createAndShowGUI() throws Exception 
+    {
+        try 
+        {
+            if (SystemTray.isSupported()) 
+            {
+                trayIcon.setImageAutoSize(true);
+                trayIcon.setToolTip("Idle");
+                
+                popup.add(hideTrayItem);
+                popup.add(showTrayItem);
+                popup.addSeparator();
+                popup.add(elogTrayItem);
+                popup.add(hlogTrayItem);
+                popup.addSeparator();
+                popup.add(aboutTrayItem);
+                popup.add(quitTrayItem);
+                
+                trayIcon.setPopupMenu(popup);
+                tray.add(trayIcon);
+            }
+            setIconImage(new ImageIcon(imageURL).getImage());    
             mainMenu.add(fileMenu);
-            mainMenu.add(aboutMenu);
+            fileMenu.add(aboutInfoItem);
             fileMenu.add(fileQuitItem);
-            aboutMenu.add(aboutInfoItem);
+            
+            mainMenu.add(errorMenu);
+            errorMenu.add(errorLogItem);
+            errorMenu.add(historyLogItem);
+            
+            mainMenu.add(radioGroup);
+            radioGroup.add(LNFMenu);
+            radioGroup.add(themeMenu);
+            themeMenu.setEnabled(false);
+            
+            LookAndFeelInfo[] nlf=UIManager.getInstalledLookAndFeels();
+            for(int i=0;i<nlf.length;i++)
+            {
+                JRadioButtonMenuItem Look= new JRadioButtonMenuItem(nlf[i].getName());
+                Look.setActionCommand(nlf[i].getClassName());
+                Look.setEnabled(operation.isAvailableLookAndFeel(Look.getActionCommand()));
+                if(nlf[i].getClassName().equals(props.getProperty("style")))
+                {
+                    Look.setSelected(true);
+                    if(nlf[i].getClassName().equals(props.getProperty("metal"))) 
+                        themeMenu.setEnabled(true);
+                }
+                Look.addActionListener(styleListener);
+                LNFMenu.add(Look);
+                group.add(Look);
+            }
+                    
+            for(int i=0;i<themes.length;i++)
+            {
+                JRadioButtonMenuItem themeItem = new JRadioButtonMenuItem(themes[i].getName());
+                themeMenu.add(themeItem);
+                themeGroup.add(themeItem);
+                themeItem.addActionListener(themeListener);
+                themeItem.setActionCommand(themes[i].getClass().getName());
+            }
+    
             setJMenuBar(mainMenu);
 
-            mainChooser.getComponent(3).setEnabled(false);
-            mainChooser.getComponent(3).setVisible(false);
             mainChooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
-
-            setLayout(new GridBagLayout());
+            mainChooser.setControlButtonsAreShown(false);
+            GridBagLayout layout = new GridBagLayout();
+            setLayout(layout);
             GridBagConstraints constraints = new GridBagConstraints();
             constraints.fill = GridBagConstraints.HORIZONTAL;
             constraints.insets = new Insets(5, 5, 5, 5);
@@ -75,139 +216,227 @@ public class Main extends JFrame implements ActionListener, MainVocabulary, Mous
             constraints.gridheight = 5;
             constraints.gridwidth = 5;
             add(mainChooser, constraints);
-            constraints.gridx = 0;
             constraints.gridy = 5;
             constraints.gridheight = 1;
             constraints.gridwidth = 1;
             add(compressButton, constraints);
             constraints.gridx = 1;
-            constraints.gridy = 5;
             add(decompressButton, constraints);
             
-            File tempFile = new File("tmp");
-            if(!tempFile.exists())
-                tempFile.mkdir();
-               
             pack();
-            Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
-            Dimension form = getSize();
-            setLocation((screen.width - form.width) / 2, (screen.height - form.height) / 2);
-            setTitle("JArchiver ");
+            setTitle(projectName);
             setResizable(false);
-            setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+            setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            setLocationRelativeTo(null);
             setVisible(true);
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, populateGuiError + "From:" + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
-            return false;
-        }
+            }
+        catch (AWTException ex) 
+        { 
+            trayIcon.setToolTip("Tray Icon Error");
+            throw new Exception("Tray Icon Error" + "at" + className);
+        } 
+        catch (Exception ex) 
+        { 
+            trayIcon.setToolTip(populateGuiError);
+            throw new Exception(populateGuiError + className + newline + ex.getMessage());
+        } 
         return true;
     }
 
-    /**
-     * Arayüz bileşenlerine uygun interface atamalarının yapıldığı method.
-     */
-    public void initiateActions() {
-        compressButton.addActionListener(this);
-        decompressButton.addActionListener(this);
-        fileQuitItem.addActionListener(this);
-        aboutInfoItem.addActionListener(this);
-        mainChooser.addMouseMotionListener(this);
-    }
-
-    /**
-     * ActionListener interface inin bir methodudur. Herhangi bir ActionEvent meydana 
-     * gelmesi durumunda ActionEventi gönderen bileşene ait fonksiyonun çağırıldığı method.
-     * @param e Meydana gelen ActionEventinin hangi arayüz bileşeni tarafından oluşturulduğunu 
-     * belirlemekte kullanılan değişken. 
-     */
-    public void actionPerformed(ActionEvent e) {
-        if (e.getSource().equals(decompressButton)) {
-            decompressButtonActionPerformed();
-        } else if (e.getSource().equals(compressButton)) {
-            compressButtonActionPerformed();
-        } else if (e.getSource().equals(fileQuitItem)) {
-            fileQuitItemActionPerformed();
-        } else if (e.getSource().equals(aboutInfoItem)) {
-            aboutInfoItemActionPerformed();
+    public void initiateActions() throws Exception 
+    {
+        try
+        {
+            compressButton.addActionListener(this);
+            decompressButton.addActionListener(this);
+            fileQuitItem.addActionListener(this);
+            aboutInfoItem.addActionListener(this);
+            errorLogItem.addActionListener(this);
+            historyLogItem.addActionListener(this);
+            mainChooser.addMouseMotionListener(this);
+            
+            trayIcon.addActionListener(this);
+            aboutTrayItem.addActionListener(this);
+            quitTrayItem.addActionListener(this);
+            elogTrayItem.addActionListener(this);
+            hlogTrayItem.addActionListener(this);
+            hideTrayItem.addActionListener(this);
+            showTrayItem.addActionListener(this);
+            
+            addWindowListener(this);
         }
-        if(e.getSource().equals(WindowConstants.EXIT_ON_CLOSE))
-            System.out.println("aaa");
+        catch (Exception ex) 
+        { 
+            trayIcon.setToolTip(addActionListenerError);
+            throw new Exception(addActionListenerError + className + newline + ex.getMessage());
+        } 
     }
-
-    /**
-     * decompressButton buttonuna basılması sonucunda yapılacak olan işlemleri belirleyen method. İlk olarak 
-     * File türünden bir değişken olan selectedFile değişkeninin null a eşit olup olmadığı kontrol edilir. 
-     * Eğer null değil ise  selectedFile değişkeninde tutulan sıkıştırılmış dosyayı açmak üzere decompressFile 
-     * isimli PreDecompress sınıfından üretilen nesneye başvurulur.
-     */
-    public void decompressButtonActionPerformed() {
-        selectedFile = mainChooser.getSelectedFile();
-
-        if (selectedFile != null) {
-            decompressFile = new PreDecompress(selectedFile);
-        } else {
-            JOptionPane.showMessageDialog(this, nullInputFileWarning, "Warning!", JOptionPane.WARNING_MESSAGE);
+    
+    ActionListener themeListener = new ActionListener() 
+    {
+        public void actionPerformed(ActionEvent e) 
+        {
+            try 
+            {
+                operation.repaintTheme(e.getActionCommand());
+            }
+            catch (Exception ex) 
+            {
+                MyLogger.getLogger().info(ex.getMessage());
+            }
+        }
+    };
+        
+    ActionListener styleListener = new ActionListener() 
+    {
+        public void actionPerformed(ActionEvent e) 
+        {
+            try 
+            {
+                if(e.getActionCommand().equals(props.getProperty("metal")))
+                    themeMenu.setEnabled(true);
+                else 
+                    themeMenu.setEnabled(false);
+                props.setProperty("style",e.getActionCommand());
+                operation.repaintGUI(e.getActionCommand());
+            } 
+            catch (ClassNotFoundException ex) 
+            {
+                MyLogger.getLogger().info(ex.getMessage()+" ClassNotFoundException");
+            } 
+            catch (InstantiationException ex) 
+            {
+                MyLogger.getLogger().info(ex.getMessage()+" InstantiationException");
+            } 
+            catch (IllegalAccessException ex)
+            {
+                MyLogger.getLogger().info(ex.getMessage()+" IllegalAccessException");
+            } 
+            catch (UnsupportedLookAndFeelException ex)
+            {
+                MyLogger.getLogger().info(ex.getMessage()+" UnsupportedLookAndFeelException");
+            } 
+            catch (Exception ex)
+            {
+                MyLogger.getLogger().info(ex.getMessage()+" UnknownException");
+            }
+        }
+    };
+    
+    public void actionPerformed(ActionEvent e) 
+    {
+        try 
+        {            
+            if (e.getSource().equals(decompressButton)) 
+                decompressButtonActionPerformed();
+            else if (e.getSource().equals(compressButton))
+                compressButtonActionPerformed();
+            else if (e.getSource().equals(fileQuitItem) || e.getSource().equals(quitTrayItem))
+                fileQuitItemActionPerformed();
+            else if (e.getSource().equals(aboutInfoItem) || e.getSource().equals(aboutTrayItem))
+                aboutInfoItemActionPerformed();
+            else if (e.getSource().equals(errorLogItem) || e.getSource().equals(elogTrayItem) || e.getSource().equals(historyLogItem) || e.getSource().equals(hlogTrayItem))
+                logItemActionPerformed(e.getActionCommand());
+            else if (e.getSource().equals(trayIcon) || e.getSource().equals(showTrayItem))
+            {
+                operation.setVisiblity(true);
+                operation.setFocus(true);
+            } 
+            else if (e.getSource().equals(hideTrayItem)) 
+                operation.setVisiblity(false);
+        } 
+        catch (Exception ex) 
+        {
+            MyLogger.getLogger().info(ex.getMessage());
         }
     }
-
-    /**
-     * compressButton basılması durumunda yapılacak olan işlemleri belirleyen method. İlk olarak File 
-     * türünden bir değişken olan selectedFile değişkeninin null a eşit olup olmadığı kontrol edilir. 
-     * Eğer null değil ise  selectedFile değişkeninde tutulan seçilmiş dosyayı sıkıştırmak üzere 
-     * compressFile isimli PreCompress sınıfından üretilen nesneye başvurulur.
-     */
-    private void compressButtonActionPerformed() {
+    
+    public void decompressButtonActionPerformed() throws Exception 
+    {
         selectedFile = mainChooser.getSelectedFile();
+        if (selectedFile != null) 
+            frames[framesLenght++] = new PreDecompress(selectedFile);
+        else 
+            trayIcon.displayMessage("Warning!",nullInputFileWarning, TrayIcon.MessageType.WARNING);
+    }
 
-        if (selectedFile != null) {
+    private void compressButtonActionPerformed() throws Exception
+    {
+        selectedFile = mainChooser.getSelectedFile();
+        if (selectedFile != null) 
+        {
             mainChooser.rescanCurrentDirectory();
-            compressFile = new PreCompress(selectedFile);
-        } else {
-            JOptionPane.showMessageDialog(this, nullInputFileWarning, "Warning!", JOptionPane.WARNING_MESSAGE);
+            frames[framesLenght++] = new PreCompress(selectedFile);
         }
+        else 
+            trayIcon.displayMessage("Warning!",nullInputFileWarning, TrayIcon.MessageType.WARNING);
     }
 
-    /**
-     * fileQuitItem menu iteminin kullanılması durumunda, showConfirmDialog dan dönen değere göre program
-     * sonlandırılır veya sonlandırılmaz.
-     */
-    public void fileQuitItemActionPerformed() {
-        int confirm;
-        confirm = JOptionPane.showConfirmDialog(this, quitMessage, "Warning!", JOptionPane.YES_NO_OPTION);
-
-        if (confirm  == JOptionPane.YES_OPTION) {
+    public void fileQuitItemActionPerformed()
+    {
+        int confirm = JOptionPane.showConfirmDialog(this, quitMessage, "Warning!", JOptionPane.YES_NO_OPTION);
+        if (confirm  == JOptionPane.YES_OPTION)
             System.exit(0);
-        }
     }
 
-    /**
-     * aboutInfoItem menu iteminin  kullanılması durumunda, proje hakkındaki genel bilgileri görüntülemekte 
-     * kullanılan About arayüzü oluşturulur.
-     */
-    public void aboutInfoItemActionPerformed() {
-        About aboutGui = new About();
+    public void aboutInfoItemActionPerformed() throws Exception
+    {
+        Gui.FrameOperations.deleteFrame(About.class.toString(),true);
+        frames[framesLenght++]=new About();
     }
+   
+    public void logItemActionPerformed(String msg) throws Exception 
+    {
+        Gui.FrameOperations.deleteFrame(Log.class.toString(),true);
+        frames[framesLenght++]=new Log(msg);
+    }
+    
+    
 
-    /**
-     * MouseMotionListener interface inin bir methodudur. Fare imlecinin MouseMotionListener
-     * interface ine sahip bir bileşen üzerinde hareket ettirilmesi durumunda, JFileChooser türünden 
-     * bir değişken olan mainChooser değişkeninin o anda göstermekte olduğu dizin içeriğini yenilenir.
-     */
-    public void mouseMoved(MouseEvent e) {
+    public void mouseMoved(MouseEvent e) 
+    {
         mainChooser.rescanCurrentDirectory();
     }
 
-    /**
-     * MouseMotionListener interface ine ait mouseDragged methodu. 
-     */
-    public void mouseDragged(MouseEvent e) {
-        JOptionPane.showMessageDialog(this, "Not Supported", "Warning!", JOptionPane.WARNING_MESSAGE);
+    public void mouseDragged(MouseEvent e) {}
+    public void windowOpened(WindowEvent e) {}
+    public void windowClosing(WindowEvent e) 
+    {
+        try {
+            props.store(new FileOutputStream("general.properties"), null);
+        } catch (IOException ex) {
+            MyLogger.getLogger().info(ex.getMessage());
+        }
+    }
+    public void windowClosed(WindowEvent e) {}
+    public void windowIconified(WindowEvent e)
+    {
+        operation.setVisiblity(false);
+    }
+    public void windowDeiconified(WindowEvent e) 
+    {
+        operation.setVisiblity(true);
+        operation.setFocus(true);
+    }
+    public void windowActivated(WindowEvent e) {}
+    public void windowDeactivated(WindowEvent e) {}
+    
+    public static int getFramesLenght()
+    {
+        return framesLenght;
     }
     
-    /**
-     * Programın çalıştırıldığı main methodu.
-     */
-    public static void main(String args[]) {
-        new Main();
+    public static void setFramesLenght(int newLenght)
+    {
+        Main.framesLenght=newLenght;
+    }
+ 
+    public static void main(String args[]){
+        try {
+            MyLogger.setup();
+            frames[framesLenght++]=new Main();
+        } catch (Exception ex) {
+            MyLogger.getLogger().info(ex.getMessage());
+        }
     }
 }

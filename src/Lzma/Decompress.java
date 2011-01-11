@@ -1,5 +1,6 @@
 package Lzma;
 
+import Common.CommonDecompress;
 import Common.MainVocabulary;
 import Gui.StatusDialog;
 import Tar.ExtractArchive;
@@ -9,170 +10,145 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import external.SevenZip.Compression.LZMA.Decoder;
-import javax.swing.JOptionPane;
+import java.awt.TrayIcon;
 
-/**
- * Bu sınıf lzma veya tar.lzma formatında sıkıştırılmış olan dosyaları açmakta kullanılır.
- */
-public class Decompress implements MainVocabulary {
-
+public class Decompress implements MainVocabulary,CommonDecompress
+{
     String className = Decompress.class.getName();
     File inFile, outFileParent, outFile;
     boolean overwrite;
     StatusDialog decompressDialog;
 
-   /**
-     * tar.lzma formatında sıkıştırılmış olan dosyaları açabilmek için Lzma.Decompress sınıfının 
-     * nesnesinin oluşturulduğu kurucu methodu.
-     * @param inFile Açılacak olan sıkıştırılmış dosyayı gösteren değişken.
-     * @param outFileParent Dosyanın açılacağı hedef dizini gösteren değişken.
-     * @param overwrite Dosyanın açılacağı dizinde aynı isimde başka bir dosya var ise üzerine yazma 
-     * işleminin yapılıp yapılmayacağını gösteren değişken.
-     * @param dialog Dosya açma işlemi esnasında görüntülenen StatusDialog arayüzünün daha 
-     * önceden oluşturulmuş olan nesnesine ait değişken.
-     */
-    public Decompress(File inFile, File outFileParent, boolean overwrite, StatusDialog dialog) {
-
-        this.inFile = inFile;
-        this.outFileParent = outFileParent;
-        this.overwrite = overwrite;
-        
-        decompressDialog = dialog;
-        decompressDialog.setIndeterminate(true);
-        decompressDialog.setStateToDecompress();
-        
-        decompressAndUntarFile();
+    public void Decompress(File inFile, File outFileParent, boolean overwrite, StatusDialog dialog) throws Exception 
+    {
+        if(debug)
+            System.out.println("Start LZMADecompress from " + inFile + " to " + outFileParent + " overwrite: " + overwrite + " at line 24.");
+        try
+        {
+            this.inFile = inFile;
+            this.outFileParent = outFileParent;
+            this.overwrite = overwrite;
+            decompressDialog = dialog;
+            decompressDialog.setIndeterminate(true);
+            decompressDialog.setStateToDecompress();
+            decompressAndUntarFile();
+        }
+        catch (Exception ex) 
+        { 
+            throw new Exception(constructError + className + newline + ex.getMessage());
+        }
     }
     
-   /**
-     * lzma formatında sıkıştırılmış olan dosyaları açabilmek için Lzma.Decompress sınıfının 
-     * nesnesinin oluşturulduğu kurucu methodu.
-     * @param inFile Açılacak olan sıkıştırılmış dosyayı gösteren değişken.
-     * @param outFileParent Dosyayının açılacağı hedef dizini gösteren değişken.
-     * @param fileName Sıkıştırılmış dosyadan çıkartılacak olan dosyanın hangi isimde 
-     * kaydedileceğini gösteren değişken.
-     * @param overwrite Dosyanın açılacağı dizinde aynı isimde başka bir dosya var ise 
-     * üzerine yazma işleminin yapılıp yapılmayacağını gösteren değişken.
-     * @param decompressDialog Dosya açma işlemi esnasında görüntülenen StatusDialog arayüzünün daha 
-     * önceden oluşturulmuş olan nesnesine ait değişken.
-     */
-    public Decompress(File inFile, File outFileParent, String fileName, boolean overwrite, StatusDialog decompressDialog) {
-
-        this.inFile = inFile;
-        this.outFile = new File(outFileParent.getAbsolutePath() + File.separator + fileName);
-        this.overwrite = overwrite;
-
-        if (decompressDialog != null) {
-            this.decompressDialog = decompressDialog;
-            this.decompressDialog.setIndeterminate(true);
-            this.decompressDialog.setStateToDecompress();
+    public void Decompress(File inFile, File outFileParent, String fileName, boolean overwrite, StatusDialog decompressDialog) throws Exception 
+    {
+        if(debug)
+            System.out.println("Start LZMADecompress from " + inFile + " to " + outFileParent + " name is " + fileName + " overwrite: " + overwrite + " at line 45.");
+        try
+        {
+            this.inFile = inFile;
+            this.outFile = new File(outFileParent.getAbsolutePath() + File.separator + fileName);
+            this.overwrite = overwrite;
+            if (decompressDialog != null) 
+            {
+                this.decompressDialog = decompressDialog;
+                this.decompressDialog.setIndeterminate(true);
+                this.decompressDialog.setStateToDecompress();
+            }
+            decompressFile();
         }
-
-        decompressFile();
+        catch (Exception ex) 
+        { 
+            throw new Exception(constructError + className + newline + ex.getMessage());
+        }
     }
 
-    /**
-     * lzma formatında sıkıştırılmış olan inFile dosyasının açma işleminin gerçekleştirildiği
-     * method. İlk olarak açma işleminin gerçekleştirileceği dizinde aynı isimde başka bir dosya
-     * olup olmadığı overwrite değişkeni ile birlikte kontrol edilir. Sıkıştırılmış olan dosyayı
-     * girdi olarak alan bir BufferedInputStream nesnesi oluşturulur. Açılmış veriyi yazmak üzere
-     * de bir BufferedOutputStream nesnesi oluşturulur. Sıkıştırılmış veriyi açma işlemini yapan
-     * Decoder nesnesinin Code methoduna  BufferedInputStream ve BufferedOutputStream nesneleri
-     * gönderilerek dosya açma işlemi gerçekleştirilir.
-     */
-    private void decompressFile() {
-
+    public void decompressFile() throws Exception
+    {
+         if(debug)
+            System.out.println("Start decompress without tar at line 69.");
         boolean fileExist = false;
         BufferedInputStream inStream = null;
         BufferedOutputStream outStream = null;
-        try {
-
-            if (outFile.exists() && overwrite == false) {
+        try 
+        {
+            if (outFile.exists() && overwrite == false) 
+            {
                 fileExist = true;
                 decompressDialog.cancelDialog();
-                JOptionPane.showMessageDialog(null, fileExistWarning, "Warning!", JOptionPane.WARNING_MESSAGE);
-            } else {
-
+                trayIcon.displayMessage( "Warning!",fileExistWarning, TrayIcon.MessageType.ERROR);
+            } 
+            else 
+            {
                 inStream = new BufferedInputStream(new FileInputStream(inFile));
                 outStream = new BufferedOutputStream(new FileOutputStream(outFile));
-
                 int propertiesSize = 5;
                 byte[] properties = new byte[propertiesSize];
-                if (inStream.read(properties, 0, propertiesSize) != propertiesSize) {
+                if (inStream.read(properties, 0, propertiesSize) != propertiesSize) 
                     throw new Exception(LzmaShortFileError);
-                }
-                
                 Decoder decoder = new Decoder(decompressDialog);
-                
-                if (!decoder.SetDecoderProperties(properties)) {
+                if (!decoder.SetDecoderProperties(properties)) 
                     throw new Exception(LzmaPropertiesError);
-                }
-                
                 long outSize = 0;
-                for (int i = 0; i < 8; i++) {
+                for (int i = 0; i < 8; i++) 
+                {
                     int v = inStream.read();
-                    if (v < 0) {
+                    if (v < 0) 
                         throw new Exception(LzmaStreamSizeError);
-                    }
                     outSize |= ((long) v) << (8 * i);
                 }
-
-                if (!decoder.Code(inStream, outStream, outSize)) {
+                if (!decoder.Code(inStream, outStream, outSize)) 
                     throw new Exception(LzmaDataStreamError);
-                }
             }
-        } catch (Exception ex) {
-            decompressDialog.cancelDialog();
-            JOptionPane.showMessageDialog(null, "Exception Throwed From: " + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
+        }
+        catch (Exception ex) 
+        {
             outFile.delete();
-        } finally {
-            try {
-                if (inStream != null) {
+            decompressDialog.cancelDialog();
+            throw new Exception(decompressError + className + newline + ex.getMessage());
+        } 
+        finally 
+        {
+            try 
+            {
+                if (inStream != null) 
                     inStream.close();
-                }
-                if (outStream != null) {
+                if (outStream != null) 
                     outStream.close();
-                }
-                if (decompressDialog != null) {
-
-                    if (decompressDialog.isCanceled() && fileExist == false) {
+                if (decompressDialog != null) 
+                    if (decompressDialog.isCanceled() && fileExist == false) 
                         outFile.delete();
-                    }
-                }
-            } catch (Exception ex) {
+            }
+            catch (Exception ex) 
+            { 
                 decompressDialog.cancelDialog();
-                JOptionPane.showMessageDialog(null, "Exception Throwed From: " + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
                 outFile.delete();
+                throw new Exception(StreamCloseError + className + newline + ex.getMessage());
             }
         }
     }
 
-    /**
-     * tar.lzma formatında sıkıştırılmış olan inFile dosyasının açma işleminin gerçekleştirildiği
-     * method. Lzma formatına ait bir inputstream nesnesi yoktur. Bu yüzden tar.lzma dosyasını 
-     * açma işlemi ilk olarak lzma formatıyla sıkıştırılmış bir dosya gibi
-     * açılması, daha sonra da bu dosyanın tar arşivinden çıkarılması şeklinde gerçekleşir.
-     */
-    private void decompressAndUntarFile() {
-
-        try {
-            
+    public void decompressAndUntarFile() throws Exception 
+    {
+         if(debug)
+            System.out.println("Start decompress with tar at line 136.");
+        try 
+        {
             String tempFilePath;
-
             tempFilePath = "tmp" + File.separator + "temp.tar";
             outFile = new File(tempFilePath);
-
             decompressFile();
-
-            if (!decompressDialog.isCanceled()) {
-
+            if (!decompressDialog.isCanceled()) 
+            {
                 inFile = outFile;
-                ExtractArchive untarFile = new ExtractArchive(inFile, outFileParent, overwrite, decompressDialog);
+                new ExtractArchive(inFile, outFileParent, overwrite, decompressDialog);
                 inFile.delete();
             }
-        } catch (Exception ex) {
-            decompressDialog.setVisible(false);
-            JOptionPane.showMessageDialog(null, "Exception Throwed From: " + className + "\n" + ex.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
+        }
+        catch (Exception ex) 
+        {   
+            decompressDialog.cancelDialog();
+            outFile.delete();
+            throw new Exception(decompressError + className + newline + ex.getMessage());
         }
     }
 }
