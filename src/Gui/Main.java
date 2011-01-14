@@ -22,6 +22,7 @@ import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.util.HashSet;
 import java.util.Set;
+import javax.sound.midi.*;
 import javax.swing.ButtonGroup;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
@@ -40,8 +41,9 @@ import Common.MainVocabulary;
 import Common.MyLogger;
 public class Main extends JFrame implements WindowListener,ActionListener, MainVocabulary, MouseMotionListener
 {
-    static final String className = Main.class.getName();
-    private static int framesLenght=0;
+	private static final long serialVersionUID = 1L;
+	static final String className = Main.class.getName();
+	static Sequencer player;
     JFileChooser mainChooser;
     JMenuBar mainMenu;
     JMenu fileMenu,errorMenu,radioGroup,themeMenu,LNFMenu;
@@ -62,6 +64,7 @@ public class Main extends JFrame implements WindowListener,ActionListener, MainV
             {
                 initiateActions();
                 addAssistiveSupport();
+                playSound();
             }
         }
         catch (Exception ex) 
@@ -104,6 +107,26 @@ public class Main extends JFrame implements WindowListener,ActionListener, MainV
     private void initComponents() throws Exception 
     {
         File[] deleted=new File(tempPath).listFiles();
+        
+        player = MidiSystem.getSequencer(); 
+    	Sequence seq = new Sequence(Sequence.PPQ,4);
+		player.open();
+		Track track = seq.createTrack();
+		ShortMessage first = new ShortMessage();
+		first. setMessage (192, 1, 102, 0);
+		MidiEvent changelnstrument = new MidiEvent(first,1);
+		track.add(changelnstrument);
+		ShortMessage a = new ShortMessage();
+		a.setMessage(144, 1, 44, 100);
+		MidiEvent noteOn = new MidiEvent(a, 2);
+		track.add(noteOn);
+		ShortMessage b = new ShortMessage();
+		b.setMessage(128, 1, 44, 100);
+		MidiEvent noteOff = new MidiEvent(b,16);
+		track.add(noteOff);
+		player.setSequence(seq);
+		player.setTempoInBPM(220);
+
         for(int i=0;i<deleted.length;i++)
             deleted[i].delete();
         props.load(new FileInputStream("general.properties"));
@@ -247,21 +270,21 @@ public class Main extends JFrame implements WindowListener,ActionListener, MainV
     {
         try
         {
-            compressButton.addActionListener(this);
-            decompressButton.addActionListener(this);
+            compressButton.addActionListener(new compressListener());
+            decompressButton.addActionListener(new decompressListener());
+            aboutInfoItem.addActionListener(new aboutListener());
+            errorLogItem.addActionListener(new logListener());
+            historyLogItem.addActionListener(new logListener());
             fileQuitItem.addActionListener(this);
-            aboutInfoItem.addActionListener(this);
-            errorLogItem.addActionListener(this);
-            historyLogItem.addActionListener(this);
             mainChooser.addMouseMotionListener(this);
             
-            trayIcon.addActionListener(this);
-            aboutTrayItem.addActionListener(this);
+            trayIcon.addActionListener(new trayListener());
+            aboutTrayItem.addActionListener(new aboutListener());
             quitTrayItem.addActionListener(this);
-            elogTrayItem.addActionListener(this);
-            hlogTrayItem.addActionListener(this);
-            hideTrayItem.addActionListener(this);
-            showTrayItem.addActionListener(this);
+            elogTrayItem.addActionListener(new logListener());
+            hlogTrayItem.addActionListener(new logListener());
+            hideTrayItem.addActionListener(new hideTrayListener());
+            showTrayItem.addActionListener(new trayListener());
             
             addWindowListener(this);
         }
@@ -322,76 +345,124 @@ public class Main extends JFrame implements WindowListener,ActionListener, MainV
             }
         }
     };
+
+    class decompressListener implements ActionListener
+    {
+		public void actionPerformed(ActionEvent e)
+	    {
+			try 
+			{
+		        selectedFile = mainChooser.getSelectedFile();
+		        if (selectedFile != null)
+						frames.add(new PreDecompress(selectedFile));
+				else 
+		            trayIcon.displayMessage("Warning!",nullInputFileWarning, TrayIcon.MessageType.WARNING);
+			}
+	        catch (Exception ex) 
+	        {
+	            MyLogger.getLogger().info(ex.getMessage());
+	        }
+	    }
+    }
+    
+    class compressListener implements ActionListener
+    {
+		public void actionPerformed(ActionEvent e)
+	    {
+			try 
+			{
+				selectedFile = mainChooser.getSelectedFile();
+		        if (selectedFile != null) 
+		        {
+		            mainChooser.rescanCurrentDirectory();
+		            frames.add(new PreCompress(selectedFile));
+		        }
+		        else 
+		            trayIcon.displayMessage("Warning!",nullInputFileWarning, TrayIcon.MessageType.WARNING);
+		    }
+	        catch (Exception ex) 
+	        {
+	            MyLogger.getLogger().info(ex.getMessage());
+	        }
+	    }
+    }
+    
+    class aboutListener implements ActionListener
+    {
+		public void actionPerformed(ActionEvent e)
+	    {
+			try 
+			{
+		        Gui.FrameOperations.deleteFrame(About.class.toString(),true);
+		        frames.add(new About());
+		    }
+	        catch (Exception ex) 
+	        {
+	            MyLogger.getLogger().info(ex.getMessage());
+	        }
+	    }
+    }
+    
+    class logListener implements ActionListener
+    {
+		public void actionPerformed(ActionEvent e)
+	    {
+			try 
+			{
+		        Gui.FrameOperations.deleteFrame(Log.class.toString(),true);
+		        frames.add(new Log(e.getActionCommand()));
+		    }
+	        catch (Exception ex) 
+	        {
+	            MyLogger.getLogger().info(ex.getMessage());
+	        }
+	    }
+    }
+    
+    class trayListener implements ActionListener
+    {
+		public void actionPerformed(ActionEvent e)
+	    {
+			try 
+			{
+                operation.setVisiblity(true);
+                operation.setFocus(true);
+		    }
+	        catch (Exception ex) 
+	        {
+	            MyLogger.getLogger().info(ex.getMessage());
+	        }
+	    }
+    }
+    
+    class hideTrayListener implements ActionListener
+    {
+		public void actionPerformed(ActionEvent e)
+	    {
+			try 
+			{
+                operation.setVisiblity(false);
+		    }
+	        catch (Exception ex) 
+	        {
+	            MyLogger.getLogger().info(ex.getMessage());
+	        }
+	    }
+    }
     
     public void actionPerformed(ActionEvent e) 
     {
         try 
-        {            
-            if (e.getSource().equals(decompressButton)) 
-                decompressButtonActionPerformed();
-            else if (e.getSource().equals(compressButton))
-                compressButtonActionPerformed();
-            else if (e.getSource().equals(fileQuitItem) || e.getSource().equals(quitTrayItem))
-                fileQuitItemActionPerformed();
-            else if (e.getSource().equals(aboutInfoItem) || e.getSource().equals(aboutTrayItem))
-                aboutInfoItemActionPerformed();
-            else if (e.getSource().equals(errorLogItem) || e.getSource().equals(elogTrayItem) || e.getSource().equals(historyLogItem) || e.getSource().equals(hlogTrayItem))
-                logItemActionPerformed(e.getActionCommand());
-            else if (e.getSource().equals(trayIcon) || e.getSource().equals(showTrayItem))
-            {
-                operation.setVisiblity(true);
-                operation.setFocus(true);
-            } 
-            else if (e.getSource().equals(hideTrayItem)) 
-                operation.setVisiblity(false);
+        {  
+            int confirm = JOptionPane.showConfirmDialog(this, quitMessage, "Warning!", JOptionPane.YES_NO_OPTION);
+            if (confirm  == JOptionPane.YES_OPTION)
+                System.exit(0);
         } 
         catch (Exception ex) 
         {
             MyLogger.getLogger().info(ex.getMessage());
         }
     }
-    
-    public void decompressButtonActionPerformed() throws Exception 
-    {
-        selectedFile = mainChooser.getSelectedFile();
-        if (selectedFile != null) 
-            frames[framesLenght++] = new PreDecompress(selectedFile);
-        else 
-            trayIcon.displayMessage("Warning!",nullInputFileWarning, TrayIcon.MessageType.WARNING);
-    }
-
-    private void compressButtonActionPerformed() throws Exception
-    {
-        selectedFile = mainChooser.getSelectedFile();
-        if (selectedFile != null) 
-        {
-            mainChooser.rescanCurrentDirectory();
-            frames[framesLenght++] = new PreCompress(selectedFile);
-        }
-        else 
-            trayIcon.displayMessage("Warning!",nullInputFileWarning, TrayIcon.MessageType.WARNING);
-    }
-
-    public void fileQuitItemActionPerformed()
-    {
-        int confirm = JOptionPane.showConfirmDialog(this, quitMessage, "Warning!", JOptionPane.YES_NO_OPTION);
-        if (confirm  == JOptionPane.YES_OPTION)
-            System.exit(0);
-    }
-
-    public void aboutInfoItemActionPerformed() throws Exception
-    {
-        Gui.FrameOperations.deleteFrame(About.class.toString(),true);
-        frames[framesLenght++]=new About();
-    }
-   
-    public void logItemActionPerformed(String msg) throws Exception 
-    {
-        Gui.FrameOperations.deleteFrame(Log.class.toString(),true);
-        frames[framesLenght++]=new Log(msg);
-    }
-    
-    
 
     public void mouseMoved(MouseEvent e) 
     {
@@ -421,21 +492,19 @@ public class Main extends JFrame implements WindowListener,ActionListener, MainV
     public void windowActivated(WindowEvent e) {}
     public void windowDeactivated(WindowEvent e) {}
     
-    public static int getFramesLenght()
-    {
-        return framesLenght;
-    }
+    public static void playSound()
+	{
+    	if(playable)
+			player.start();
+	}
     
-    public static void setFramesLenght(int newLenght)
-    {
-        Main.framesLenght=newLenght;
-    }
- 
     public static void main(String args[]){
         try {
             MyLogger.setup();
-            frames[framesLenght++]=new Main();
+            frames.add(new Main());
+            //frames.get(0).setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         } catch (Exception ex) {
+        	playSound();
             MyLogger.getLogger().info(ex.getMessage());
         }
     }

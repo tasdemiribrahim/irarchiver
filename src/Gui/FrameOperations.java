@@ -1,5 +1,6 @@
 package Gui;
 
+import javax.swing.JFrame;
 import javax.swing.LookAndFeel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
@@ -47,6 +48,9 @@ public class FrameOperations implements MainVocabulary
         try 
         {
            UIManager.setLookAndFeel(lookAndFeel);
+           for(JFrame frame:frames)
+               SwingUtilities.updateComponentTreeUI(frame);
+           frames.get(0).pack();
         } 
         catch (ClassNotFoundException ex) 
         {
@@ -64,28 +68,29 @@ public class FrameOperations implements MainVocabulary
         {
             throw new UnsupportedLookAndFeelException(ex.getMessage());
         }
-        for(int i=0;i<Gui.Main.getFramesLenght();i++)
-            SwingUtilities.updateComponentTreeUI(frames[i]);
-        frames[0].pack();
+        catch (Exception ex) 
+        {
+            throw new Exception(populateGuiError+" at "+ className + " at repaintGUI " + newline +ex.getMessage());
+        }
     }
     
     public void setVisiblity(boolean b) 
     {
-       for(int i=0;i<Gui.Main.getFramesLenght();i++)
+        for(JFrame frame:frames)
        {
            if(b)
-               frames[i].setState(Frame.NORMAL);
-           frames[i].setVisible(b);
+               frame.setState(Frame.NORMAL);
+           frame.setVisible(b);
        }
     }
     
     public void setFocus(boolean b)
     {
-       for(int i=0;i<Gui.Main.getFramesLenght();i++)
+        for(JFrame frame:frames)
        {
            if(b)
-               frames[i].setState(Frame.NORMAL);
-           frames[i].toFront();
+               frame.setState(Frame.NORMAL);
+           frame.toFront();
        }
     }
     
@@ -93,14 +98,12 @@ public class FrameOperations implements MainVocabulary
     {
         try
         {
-            for(int i=0;i<Gui.Main.getFramesLenght();i++)
-               if(frames[i].getClass().toString().equals(oldFrame))
+            for(int i=0;i<frames.size();i++)
+               if(frames.get(i).getClass().toString().equals(oldFrame))
                {
                    if(close)
-                       frames[i].dispose();
-                   for(int j=i;j<Gui.Main.getFramesLenght()-1;j++)
-                       frames[j]=frames[j+1];
-                   Gui.Main.setFramesLenght(Gui.Main.getFramesLenght()-1);
+                       frames.get(i).dispose();
+                   frames.remove(i);
                    break;
                }
         }

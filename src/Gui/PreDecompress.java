@@ -21,7 +21,9 @@ import javax.swing.JOptionPane;
 
 public class PreDecompress extends JFrame implements ActionListener, MainVocabulary 
 {
-    private String className = PreDecompress.class.getName();
+	private static final long serialVersionUID = 3335809149725585657L;
+	private String className = PreDecompress.class.getName();
+	private final PreDecompress _this =this;
     private JLabel inFileLabel, outFileLabel;
     private JCheckBox overwriteCheckBox;
     private JTextField inFileTextBox, outFileTextBox;
@@ -119,21 +121,16 @@ public class PreDecompress extends JFrame implements ActionListener, MainVocabul
 
     public void initiateActions() 
     {
-        actionButton.addActionListener(this);
+        actionButton.addActionListener(new actionButtonListener());
         cancelButton.addActionListener(this);
-        outFileChooserButton.addActionListener(this);
+        outFileChooserButton.addActionListener(new outFileChooserButtonListener());
     }
 
     public void actionPerformed(ActionEvent e) 
     {
         try
         {
-            if (e.getSource().equals(cancelButton)) 
-                closeActionPerformed();
-            else if (e.getSource().equals(outFileChooserButton)) 
-                outFileChooserButtonActionPerformed();
-            else if (e.getSource().equals(actionButton)) 
-                actionButtonActionPerformed();
+        	closeActionPerformed();
         } 
         catch (Exception ex) 
         { 
@@ -141,46 +138,51 @@ public class PreDecompress extends JFrame implements ActionListener, MainVocabul
         } 
     }
 
-    public void outFileChooserButtonActionPerformed()
+    class outFileChooserButtonListener implements ActionListener
     {
-        int value = outFileChooser.showSaveDialog(this);
-        if (value == JFileChooser.APPROVE_OPTION) 
-            outFileTextBox.setText(outFileChooser.getSelectedFile().toString());
-
+		public void actionPerformed(ActionEvent e)
+	    {
+	        int value = outFileChooser.showSaveDialog(_this);
+	        if (value == JFileChooser.APPROVE_OPTION) 
+	            outFileTextBox.setText(outFileChooser.getSelectedFile().toString());
+	    }
     }
 
-    public void actionButtonActionPerformed() throws InterruptedException, Exception 
+    class actionButtonListener implements ActionListener
     {
-        try
-        {
-            int confirm=JOptionPane.YES_OPTION;
-            outFileParent = new File(outFileTextBox.getText());
-            if (outFileParent != null) 
-            {
-                if(!outFileParent.exists())
-                    confirm = JOptionPane.showConfirmDialog(this, "Output Directory Doesn't Exist.\nDo You Want To Create?", "Warning!", JOptionPane.YES_NO_OPTION);
-                if(confirm==JOptionPane.YES_OPTION)
-                {   
-                    outFileParent.mkdir();
-                    handleDecompress = new DecompressHandler(inFile, outFileParent, overwriteCheckBox.isSelected());  
-                    Thread decompressThread = new Thread(handleDecompress);
-                    decompressThread.start();
-                    if (Thread.interrupted()) 
-                    {
-                        trayIcon.setToolTip("decompressThread Thread Interrupted");
-                        throw new InterruptedException("decompressThread Thread Interrupted at" + className);
-                    }
-                    closeActionPerformed();
-                }
-            } 
-            else
-                trayIcon.displayMessage("Warning!",outputFolderWarning, TrayIcon.MessageType.WARNING);
-        } 
-        catch (Exception ex) 
-        { 
-            trayIcon.setToolTip("Action error");
-            throw new Exception("Action error" + " at " + className + newline + ex.getMessage());
-        } 
+		public void actionPerformed(ActionEvent e)
+	    {
+	        try
+	        {
+	            int confirm=JOptionPane.YES_OPTION;
+	            outFileParent = new File(outFileTextBox.getText());
+	            if (outFileParent != null) 
+	            {
+	                if(!outFileParent.exists())
+	                    confirm = JOptionPane.showConfirmDialog(_this, "Output Directory Doesn't Exist.\nDo You Want To Create?", "Warning!", JOptionPane.YES_NO_OPTION);
+	                if(confirm==JOptionPane.YES_OPTION)
+	                {   
+	                    outFileParent.mkdir();
+	                    handleDecompress = new DecompressHandler(inFile, outFileParent, overwriteCheckBox.isSelected());  
+	                    Thread decompressThread = new Thread(handleDecompress);
+	                    decompressThread.start();
+	                    if (Thread.interrupted()) 
+	                    {
+	                        trayIcon.setToolTip("decompressThread Thread Interrupted");
+	                        throw new InterruptedException("decompressThread Thread Interrupted at" + className);
+	                    }
+	                    closeActionPerformed();
+	                }
+	            } 
+	            else
+	                trayIcon.displayMessage("Warning!",outputFolderWarning, TrayIcon.MessageType.WARNING);
+	        } 
+	        catch (Exception ex) 
+	        { 
+	            trayIcon.setToolTip("Action error");
+	            MyLogger.getLogger().info("Action error" + " at " + className + newline + ex.getMessage());
+	        } 
+	    }
     }
 
     private void addAssistiveSupport() 

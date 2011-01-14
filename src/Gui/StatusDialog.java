@@ -9,7 +9,8 @@ import javax.swing.*;
 
 public class StatusDialog extends JFrame implements MainVocabulary, ActionListener 
 {
-    private String className = StatusDialog.class.getName();
+	private static final long serialVersionUID = 1291752033458227611L;
+	private String className = StatusDialog.class.getName();
     private String cancelMessage, succeedMessage,archiveName,historyMsg;
     public boolean cancel = false, isIndeterminate = false, isEditable = true;
     private JProgressBar statusProgressBar;
@@ -93,7 +94,7 @@ public class StatusDialog extends JFrame implements MainVocabulary, ActionListen
 
     private void initiateActions()
     {
-        cancelButton.addActionListener(this);
+        cancelButton.addActionListener(new cancelButtonListener());
         okButton.addActionListener(this);
     }
 
@@ -101,13 +102,8 @@ public class StatusDialog extends JFrame implements MainVocabulary, ActionListen
     {
         try
         {
-            if (e.getSource().equals(cancelButton)) 
-                cancelButtonActionPerformed();
-            else if (e.getSource().equals(okButton)) 
-            {
-                Gui.FrameOperations.deleteFrame(this.getClass().toString(),false);
-                this.dispose();
-            }
+            Gui.FrameOperations.deleteFrame(this.getClass().toString(),false);
+            this.dispose();
         } 
         catch (Exception ex) 
         {
@@ -115,19 +111,22 @@ public class StatusDialog extends JFrame implements MainVocabulary, ActionListen
         }
     }
 
-    private void cancelButtonActionPerformed() 
+    class cancelButtonListener implements ActionListener
     {
-        cancel = true;
-        stateLabel.setText(cancelMessage);
-        statusProgressBar.setValue(0);
-        
-        if(isIndeterminate)
-            setIndeterminate(false);
-        statusProgressBar.setStringPainted(false);
-        
-        cancelButton.setVisible(false);
-        okButton.setVisible(true);
-        okButton.setEnabled(true);
+		public void actionPerformed(ActionEvent e)
+	    {
+	        cancel = true;
+	        stateLabel.setText(cancelMessage);
+	        statusProgressBar.setValue(0);
+	        
+	        if(isIndeterminate)
+	            setIndeterminate(false);
+	        statusProgressBar.setStringPainted(false);
+	        
+	        cancelButton.setVisible(false);
+	        okButton.setVisible(true);
+	        okButton.setEnabled(true);
+	    }
     }
 
     public void setStateToEncrypt () 
@@ -222,6 +221,7 @@ public class StatusDialog extends JFrame implements MainVocabulary, ActionListen
             setIndeterminate(false);
         statusProgressBar.setValue(100);
         trayIcon.displayMessage(archiveName,succeedMessage, TrayIcon.MessageType.INFO);
+        Main.playSound();
         cancelButton.setVisible(false);
         okButton.setVisible(true);
         okButton.setEnabled(true);

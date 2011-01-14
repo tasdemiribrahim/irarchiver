@@ -19,6 +19,7 @@ import Common.MyLogger;
 import java.awt.Font;
 import java.awt.GraphicsEnvironment;
 import java.awt.event.KeyEvent;
+import java.awt.print.PrinterException;
 import java.awt.print.PrinterJob;
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -35,7 +36,9 @@ import javax.swing.event.ChangeListener;
 
 public class Log extends JFrame implements MainVocabulary,ActionListener,ChangeListener
 {
-    private static final String className = Log.class.getName();
+	private static final long serialVersionUID = -2511711375232899490L;
+	private static final String className = Log.class.getName();
+	private final Log _this =this;
     private static String type,size,currentFont;
     private int currentStyle;
     private JMenuBar mainMenu;
@@ -97,19 +100,6 @@ public class Log extends JFrame implements MainVocabulary,ActionListener,ChangeL
         eraseItem.setMnemonic(KeyEvent.VK_E);
     }
     
-    private void closeLog() throws Exception
-    {
-        try
-        {
-            Gui.FrameOperations.deleteFrame(this.getClass().toString(),true);
-        }
-        catch (Exception ex) 
-        { 
-            trayIcon.setToolTip("Close Error");
-            throw new Exception("Close Error " + className + newline + ex.getMessage());
-        }
-    }
-    
     private boolean createAndShowGUI() throws Exception 
     {
         try 
@@ -157,64 +147,15 @@ public class Log extends JFrame implements MainVocabulary,ActionListener,ChangeL
         return true;
     }
     
-    public void actionPerformed(ActionEvent e) 
-    { 
-        try 
-        {
-            if (e.getSource().equals(closeButton)) 
-                closeLog();
-            else if (e.getSource().equals(refreshItem)) 
-                Log.writeLog();
-            else if (e.getSource().equals(eraseItem)) 
-                eraseLog();
-            else if (e.getSource().equals(fontBox)) 
-            {
-                currentFont=(String)fontBox.getSelectedItem();
-                props.setProperty("font", currentFont);
-                setFont();
-            }
-            else if (e.getSource().equals(stylesBox)) 
-            {
-                currentStyle=stylesBox.getSelectedIndex();
-                setFont();
-            }
-            else if (e.getSource().equals(printItem)) 
-            {
-                 PrinterJob job = PrinterJob.getPrinterJob();
-                 boolean ok = job.printDialog();
-                 if (ok) 
-                    logTextPane.print();
-            }
-        } 
-        catch (IOException ex) 
-        {
-            MyLogger.getLogger().info(ex.getMessage());
-        }
-        catch (Exception ex) 
-        {
-            MyLogger.getLogger().info(ex.getMessage());
-        }
-    }
-
     private void initiateActions() 
     {
-        closeButton.addActionListener(this);
-        refreshItem.addActionListener(this);
-        eraseItem.addActionListener(this);
-        fontBox.addActionListener(this);
-        stylesBox.addActionListener(this);
+        closeButton.addActionListener(new closeLogListener());
+        eraseItem.addActionListener(new eraseLogListener());
+        fontBox.addActionListener(new fontBoxListener());
+        stylesBox.addActionListener(new styleBoxListener());
+        printItem.addActionListener(new printItemListener());
         sizes.addChangeListener(this);
-        printItem.addActionListener(this);
-    }
-    
-    private void eraseLog() throws IOException 
-    {
-        int confirm = JOptionPane.showConfirmDialog(this, eraseLogMessage, type, JOptionPane.YES_NO_OPTION);
-        if (confirm  == JOptionPane.YES_OPTION)
-        {
-            MyLogger.eraseLog(type);
-            Log.writeLog();
-        }
+        refreshItem.addActionListener(this);
     }
     
     public static void writeLog() throws IOException
@@ -247,6 +188,83 @@ public class Log extends JFrame implements MainVocabulary,ActionListener,ChangeL
             MyLogger.getLogger().info(ex.getMessage());
         }
     }
+    
+    public void actionPerformed(ActionEvent e) 
+    { 
+        try {
+			Log.writeLog();
+		} catch (IOException ex) {
+			MyLogger.getLogger().info(ex.getMessage());
+		}
+    }
+
+    class printItemListener implements ActionListener
+    {
+		public void actionPerformed(ActionEvent e)
+	    {
+			try {
+	            PrinterJob job = PrinterJob.getPrinterJob();
+	            boolean ok = job.printDialog();
+	            if (ok)
+						logTextPane.print();
+			} catch (PrinterException ex) {    
+				MyLogger.getLogger().info(ex.getMessage());
+		      
+			}
+	    }
+	}
+    
+    class styleBoxListener implements ActionListener
+    {
+		public void actionPerformed(ActionEvent e)
+	    {
+            currentStyle=stylesBox.getSelectedIndex();
+            setFont();
+	    }
+    }
+    
+    class fontBoxListener implements ActionListener
+    {
+		public void actionPerformed(ActionEvent e)
+	    {
+            currentFont=(String)fontBox.getSelectedItem();
+            props.setProperty("font", currentFont);
+            setFont();
+	    }
+    }
+    
+    class closeLogListener implements ActionListener
+    {
+		public void actionPerformed(ActionEvent e)
+	    {
+	        try
+	        {
+	            Gui.FrameOperations.deleteFrame(_this.getClass().toString(),true);
+	        }
+	        catch (Exception ex) 
+	        { 
+	            trayIcon.setToolTip("Close Error");
+	            MyLogger.getLogger().info("Close Error " + className + newline + ex.getMessage());
+	        }
+	    }
+    }
+
+    class eraseLogListener implements ActionListener
+    {
+		public void actionPerformed(ActionEvent e)
+	    {
+	        int confirm = JOptionPane.showConfirmDialog(_this, eraseLogMessage, type, JOptionPane.YES_NO_OPTION);
+	        if (confirm  == JOptionPane.YES_OPTION)
+	        {
+	            try {
+					MyLogger.eraseLog(type);
+		            Log.writeLog();
+				} catch (IOException ex) {
+		            MyLogger.getLogger().info(ex.getMessage());
+				}
+	        }
+	    }
+    }
 
     public void stateChanged(ChangeEvent e)
     {
@@ -258,4 +276,5 @@ public class Log extends JFrame implements MainVocabulary,ActionListener,ChangeL
     {
        logTextPane.setFont(new Font(props.getProperty("font"),currentStyle,Integer.parseInt(size)));
     }
+
 }

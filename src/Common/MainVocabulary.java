@@ -8,11 +8,14 @@ import javax.swing.plaf.metal.DefaultMetalTheme;
 import javax.swing.plaf.metal.MetalTheme;
 import javax.swing.plaf.metal.OceanTheme;
 import Gui.themes.*;
+
+import java.util.ArrayList;
 import java.util.Locale;
 import java.util.Properties;
 
 public interface MainVocabulary {
     public static final boolean debug=true;
+    public boolean playable=true;
     //              CHARS & PATHS
     public static final long emptyDirectorySize = 4096;
     public static final String errorLogPath = "Log/errorLog.log";
@@ -30,8 +33,8 @@ public interface MainVocabulary {
     public static final CommonCompress[] Compressors = new CommonCompress[] {new BZip2.Compress(),new GZip.Compress(),new Lzma.Compress(),new Zip.Compress()};
     public static final CommonDecompress[] Decompressors = new CommonDecompress[] {new BZip2.Decompress(),new GZip.Decompress(),new Lzma.Decompress(),new Zip.Decompress()};
     //              PROJECT INFORMATION
-    public static final String projectName = "JArchiver";
-    public static final String projectVersion = "1.1";
+    public static final String projectName = "irArchiver";
+    public static final String projectVersion = "1.0.1";
     public static final String Author1 = "İbrahim Taşdemir";
     public static final String Author2 = "Ramis Taşgın";
     public static final String Adviser = "Gürhan Gündüz";
@@ -100,7 +103,7 @@ public interface MainVocabulary {
     public static final URL imageURL = MainVocabulary.class.getResource("images/icon.gif");
     public static final TrayIcon trayIcon=new TrayIcon(new ImageIcon(imageURL, projectName).getImage());
     //              FRAMES
-    public JFrame[] frames = new JFrame[10];
+    public ArrayList<JFrame> frames = new ArrayList<JFrame>();
     public static final Locale currentLocale = new Locale ("tr","TR");
     public static final String[] styleNames = {"Plain", "Bold", "Italic", "Bold Italic"};
     Properties props = new Properties();

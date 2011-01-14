@@ -18,7 +18,8 @@ import Common.MyLogger;
 
 public class CompareAndCompress extends JFrame implements ActionListener, MainVocabulary, Runnable 
 {
-    private static final String className = CompareAndCompress.class.getName();
+	private static final long serialVersionUID = -8526244776188870268L;
+	private static final String className = CompareAndCompress.class.getName();
     private JLabel  supportedFormatsLabel, sizesLabel,bestFormatTitleLabel, bestFormatTypeLabel, bestFormatSizeTitleLabel, bestFormatSizelabel,
             resultLabel;
     private JButton closeButton;
@@ -36,7 +37,7 @@ public class CompareAndCompress extends JFrame implements ActionListener, MainVo
             this.inFile = inFile;
             this.outFileParent = outFileParent;
             this.outFileName = outFileName;
-            this.overwrite = overwrite;
+            this.setOverwrite(overwrite);
 
             compressDialog = new StatusDialog(this.outFileName);
             compressDialog.setStateToCompress();
@@ -160,17 +161,14 @@ public class CompareAndCompress extends JFrame implements ActionListener, MainVo
 
     public void actionPerformed(ActionEvent e) 
     {
-        if (e.getSource().equals(closeButton)) 
+        try 
         {
-            try 
-            {
-                Gui.FrameOperations.deleteFrame(this.getClass().toString(),false);
-                this.dispose();
-            } 
-            catch (Exception ex) 
-            {
-                MyLogger.getLogger().info(ex.getMessage());
-            }
+            Gui.FrameOperations.deleteFrame(this.getClass().toString(),false);
+            this.dispose();
+        } 
+        catch (Exception ex) 
+        {
+            MyLogger.getLogger().info(ex.getMessage());
         }
     }
 
@@ -262,6 +260,14 @@ public class CompareAndCompress extends JFrame implements ActionListener, MainVo
             throw new Exception("compress Error" + "at" + className + newline + ex.getMessage());
         } 
     }
+
+	public void setOverwrite(boolean overwrite) {
+		this.overwrite = overwrite;
+	}
+
+	public boolean isOverwrite() {
+		return overwrite;
+	}
     
     public void run() {
         try {

@@ -14,7 +14,8 @@ import java.awt.event.KeyEvent;
 
 public class About extends JFrame implements MainVocabulary, ActionListener
 {
-    private static final String className = About.class.getName();
+	private static final long serialVersionUID = 5165229384063481199L;
+	private static final String className = About.class.getName();
     private JButton closeButton;
     private JLabel nameLabel, projectNameLabel, versionLabel, projectVersionLabel, authorNameLabel,
             projectAuthorNameLabel1, projectAuthorNameLabel2, adviserNameLabel, projectAdviserNameLabel;
@@ -118,10 +119,7 @@ public class About extends JFrame implements MainVocabulary, ActionListener
     { 
         try
         {
-            if(e.getSource().equals(closeButton))
-            {
-                Gui.FrameOperations.deleteFrame(this.getClass().toString(),true);
-            }
+        	Gui.FrameOperations.deleteFrame(this.getClass().toString(),true);
         } 
         catch (Exception ex) 
         {

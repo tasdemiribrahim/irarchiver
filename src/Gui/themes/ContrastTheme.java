@@ -4,7 +4,6 @@ import javax.swing.plaf.basic.*;
 import javax.swing.plaf.metal.*;
 import javax.swing.*;
 import javax.swing.border.*;
-import java.awt.*;
 
 /**
  * This class describes a higher-contrast Metal Theme.
