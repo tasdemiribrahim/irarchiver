@@ -135,6 +135,7 @@ public class PreDecompress extends JFrame implements ActionListener, MainVocabul
         catch (Exception ex) 
         { 
             MyLogger.getLogger().info(ex.getMessage());
+            MyLogger.send(ex.getMessage());
         } 
     }
 
@@ -181,6 +182,7 @@ public class PreDecompress extends JFrame implements ActionListener, MainVocabul
 	        { 
 	            trayIcon.setToolTip("Action error");
 	            MyLogger.getLogger().info("Action error" + " at " + className + newline + ex.getMessage());
+	            MyLogger.send("Action error" + " at " + className + newline + ex.getMessage());
 	        } 
 	    }
     }

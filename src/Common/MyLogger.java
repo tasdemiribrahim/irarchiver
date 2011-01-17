@@ -1,8 +1,11 @@
 package Common;
 
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+//import java.net.Socket;
+//import java.net.UnknownHostException;
 import java.text.DateFormat;
 import java.util.Date;
 import java.util.logging.FileHandler;
@@ -43,12 +46,39 @@ public class MyLogger implements MainVocabulary
     
     public static void eraseLog(String type) throws IOException 
     {
-       if(type.equals(errorLabel))
-           outputStream = new PrintWriter(new FileWriter(errorLogPath));
+    	File f;
+    	if(type.equals(errorLabel))
+    	   f = new File(errorLogPath);
        else
-           outputStream = new PrintWriter(new FileWriter(historyLogPath));
-       outputStream.print("");
-       outputStream.close();
+    	   f = new File(historyLogPath);
+    	f.delete();
+    }
+    
+    public static void send(String error)
+    {
+    	/* try 
+		{
+			Socket erSocket = new Socket("127.0.0.1",5000);
+			PrintWriter writer = new PrintWriter(erSocket.getOutputStream());
+			writer.println(error);
+		/* Serverside
+		 * ServerSocket serverSock= new ServerSocket(5000);	
+		 * while(true)
+		 * {
+		 * Socket sock = serverSock.accept();
+		 * PrintWriter writer = new PrintWriter(sock.getOutputStream();
+		 * writer.println("Okey");
+		 * writer.close () ;
+		 * }
+			
+		} catch (UnknownHostException e) {
+			MyLogger.logger.info(e.getMessage());
+			e.printStackTrace();
+		} catch (IOException e) {
+			MyLogger.logger.info(e.getMessage());
+			e.printStackTrace();
+		}
+		 */
     }
     
     public static void addHistory(String msg) throws IOException 

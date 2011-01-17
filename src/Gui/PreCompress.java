@@ -372,6 +372,7 @@ public class PreCompress extends JFrame implements ActionListener, ChangeListene
 	        {
 	            trayIcon.setToolTip("Action error");
 	            MyLogger.getLogger().info(ex.getMessage());
+	            MyLogger.send(ex.getMessage());
 	        }
 	    }
     }
@@ -385,10 +386,12 @@ public class PreCompress extends JFrame implements ActionListener, ChangeListene
         catch (InterruptedException ex) 
         {
             MyLogger.getLogger().info(ex.getMessage());
+            MyLogger.send(ex.getMessage());
         } 
         catch (Exception ex) 
         {
             MyLogger.getLogger().info(ex.getMessage());
+            MyLogger.send(ex.getMessage());
         } 
     }
 

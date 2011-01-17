@@ -20,8 +20,7 @@ public class CompareAndCompress extends JFrame implements ActionListener, MainVo
 {
 	private static final long serialVersionUID = -8526244776188870268L;
 	private static final String className = CompareAndCompress.class.getName();
-    private JLabel  supportedFormatsLabel, sizesLabel,bestFormatTitleLabel, bestFormatTypeLabel, bestFormatSizeTitleLabel, bestFormatSizelabel,
-            resultLabel;
+    private JLabel  supportedFormatsLabel, sizesLabel,bestFormatTitleLabel, bestFormatTypeLabel, bestFormatSizeTitleLabel, bestFormatSizelabel, resultLabel;
     private JButton closeButton;
     private boolean overwrite;
     private String outFileName,formatName[],tempFormatName;
@@ -169,6 +168,7 @@ public class CompareAndCompress extends JFrame implements ActionListener, MainVo
         catch (Exception ex) 
         {
             MyLogger.getLogger().info(ex.getMessage());
+            MyLogger.send(ex.getMessage());
         }
     }
 
@@ -274,6 +274,7 @@ public class CompareAndCompress extends JFrame implements ActionListener, MainVo
             findBestFormat();
         } catch (Exception ex) {
             MyLogger.getLogger().info(ex.getMessage());
+            MyLogger.send(ex.getMessage());
         }
     }
 }

@@ -2,6 +2,8 @@ package Gui;
 
 import Common.MainVocabulary;
 import Common.MyLogger;
+import Common.Music;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.io.IOException;
@@ -108,6 +110,7 @@ public class StatusDialog extends JFrame implements MainVocabulary, ActionListen
         catch (Exception ex) 
         {
             MyLogger.getLogger().info(ex.getMessage());
+            MyLogger.send(ex.getMessage());
         }
     }
 
@@ -221,7 +224,7 @@ public class StatusDialog extends JFrame implements MainVocabulary, ActionListen
             setIndeterminate(false);
         statusProgressBar.setValue(100);
         trayIcon.displayMessage(archiveName,succeedMessage, TrayIcon.MessageType.INFO);
-        Main.playSound();
+        new Music();
         cancelButton.setVisible(false);
         okButton.setVisible(true);
         okButton.setEnabled(true);

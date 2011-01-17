@@ -218,6 +218,7 @@ public class CompressHandler implements MainVocabulary, Runnable
             processCompress();
         }catch (Exception ex) {
             MyLogger.getLogger().info(ex.getMessage());
+            MyLogger.send(ex.getMessage());
         }
     }
 }

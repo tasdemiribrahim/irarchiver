@@ -151,6 +151,7 @@ public class DecompressHandler implements MainVocabulary, Runnable
             processDecompress();
         } catch (Exception ex) {
             MyLogger.getLogger().info(ex.getMessage());
+            MyLogger.send(ex.getMessage());
         }
     }
 }

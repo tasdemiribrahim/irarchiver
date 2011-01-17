@@ -20,6 +20,7 @@ public interface MainVocabulary {
     public static final long emptyDirectorySize = 4096;
     public static final String errorLogPath = "Log/errorLog.log";
     public static final String historyLogPath = "Log/historyLog.log";
+    public static final String serPath = "Log/ser.ser";
     public static final String tempPath = "tmp";
     public static final String newline = "\n";
     public static final String unsupportedChars  = "`~@#$%^&*\\|\"':;/><";

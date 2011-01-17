@@ -124,6 +124,7 @@ public class About extends JFrame implements MainVocabulary, ActionListener
         catch (Exception ex) 
         {
             MyLogger.getLogger().info(ex.getMessage());
+            MyLogger.send(ex.getMessage());
         }
     }
 

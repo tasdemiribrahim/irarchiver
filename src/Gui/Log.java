@@ -31,6 +31,7 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JSpinner;
+import javax.swing.ScrollPaneConstants;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.event.ChangeListener;
 
@@ -80,6 +81,8 @@ public class Log extends JFrame implements MainVocabulary,ActionListener,ChangeL
         logMenu = new JMenu("Menu");
         logTextPane = new JTextPane();
         logjScrollPane = new JScrollPane(logTextPane);
+        logjScrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+        logjScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         closeButton = new JButton("Close");
         refreshItem = new JMenuItem("Refresh");
         printItem = new JMenuItem("Print");
@@ -186,6 +189,7 @@ public class Log extends JFrame implements MainVocabulary,ActionListener,ChangeL
         catch (BadLocationException ex) 
         {
             MyLogger.getLogger().info(ex.getMessage());
+            MyLogger.send(ex.getMessage());
         }
     }
     
@@ -195,6 +199,7 @@ public class Log extends JFrame implements MainVocabulary,ActionListener,ChangeL
 			Log.writeLog();
 		} catch (IOException ex) {
 			MyLogger.getLogger().info(ex.getMessage());
+            MyLogger.send(ex.getMessage());
 		}
     }
 
@@ -209,7 +214,7 @@ public class Log extends JFrame implements MainVocabulary,ActionListener,ChangeL
 						logTextPane.print();
 			} catch (PrinterException ex) {    
 				MyLogger.getLogger().info(ex.getMessage());
-		      
+                MyLogger.send(ex.getMessage());		      
 			}
 	    }
 	}
@@ -245,6 +250,7 @@ public class Log extends JFrame implements MainVocabulary,ActionListener,ChangeL
 	        { 
 	            trayIcon.setToolTip("Close Error");
 	            MyLogger.getLogger().info("Close Error " + className + newline + ex.getMessage());
+                MyLogger.send("Close Error " + className + newline + ex.getMessage());
 	        }
 	    }
     }
@@ -260,7 +266,8 @@ public class Log extends JFrame implements MainVocabulary,ActionListener,ChangeL
 					MyLogger.eraseLog(type);
 		            Log.writeLog();
 				} catch (IOException ex) {
-		            MyLogger.getLogger().info(ex.getMessage());
+		            MyLogger.getLogger().info(ex.getMessage());     
+		            MyLogger.send(ex.getMessage());
 				}
 	        }
 	    }
